@@ -44,4 +44,4 @@ Later: cross-platform support, deployment-file awareness, a learning mode that w
 
 ## License
 
-TBD
+[Apache-2.0](LICENSE)
