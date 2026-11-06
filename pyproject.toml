@@ -1,0 +1,40 @@
+[project]
+name = "rtfmup"
+version = "0.0.1.dev0"
+description = "Set up any repo from its README."
+readme = "README.md"
+authors = [
+    { name = "xb17", email = "drew@xb17.com" }
+]
+# 3.11+ gives us stdlib tomllib for reading pyproject.toml/Cargo.toml in later passes;
+# 3.10 reached end of life in October 2026.
+requires-python = ">=3.11"
+dependencies = []
+keywords = ["setup", "readme", "cli", "developer-tools", "bootstrap"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Build Tools",
+]
+
+[project.urls]
+Homepage = "https://github.com/xb17/rtfmup"
+Repository = "https://github.com/xb17/rtfmup"
+Issues = "https://github.com/xb17/rtfmup/issues"
+
+[project.scripts]
+rtfmup = "rtfmup.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
