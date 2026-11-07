@@ -1,0 +1,18 @@
+# DRAFT gold annotation: needs Drew's review. Source: Readme.md at the pinned sha.
+repo: express
+variant: native
+steps:
+  - {category: install, command: "npm install express", variant: native, platform: any}
+  - {category: install, command: "npm install -g express-generator@4", variant: native, platform: any}
+  - {category: setup, command: "express /tmp/foo && cd /tmp/foo", variant: native, platform: unix}
+  - {category: install, command: "npm install", variant: native, platform: any}
+  - {category: run, command: "npm start", variant: native, platform: any}
+  - {category: install, command: "git clone https://github.com/expressjs/express.git --depth 1 && cd express", variant: native, platform: any}
+  - {category: run, command: "node examples/content-negotiation", variant: native, platform: any}
+runtimes:
+  - {name: node, spec: ">=18"}  # "Node.js 18 or higher is required."
+env_required: []
+services: []
+notes: >-
+  The file is named `Readme.md` (not README.md). `npm test` is a test command and
+  excluded. The `<details>` blocks hold only team lists.

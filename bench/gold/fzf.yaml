@@ -1,0 +1,40 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: fzf
+variant: native
+steps:
+  - {category: install, command: "brew install fzf", variant: macos, platform: macos}
+  - {category: install, command: "sudo port install fzf", variant: macos, platform: unix}
+  - {category: install, command: "mise use -g fzf@latest", variant: native, platform: any}
+  # Linux packages (table in the README)
+  - {category: install, command: "sudo apk add fzf", variant: linux, platform: unix}
+  - {category: install, command: "sudo apt install fzf", variant: linux, platform: unix}
+  - {category: install, command: "conda install -c conda-forge fzf", variant: linux, platform: any}
+  - {category: install, command: "sudo dnf install fzf", variant: linux, platform: unix}
+  - {category: install, command: "nix-env -iA nixpkgs.fzf", variant: linux, platform: unix}
+  - {category: install, command: "sudo pacman -S fzf", variant: linux, platform: unix}
+  - {category: install, command: "pkg install fzf", variant: linux, platform: unix}
+  - {category: install, command: "pkgin install fzf", variant: linux, platform: unix}
+  - {category: install, command: "pkg_add fzf", variant: linux, platform: unix}
+  - {category: install, command: "emerge --ask app-shells/fzf", variant: linux, platform: unix}
+  - {category: install, command: "spack install fzf", variant: linux, platform: unix}
+  - {category: install, command: "sudo xbps-install -S fzf", variant: linux, platform: unix}
+  - {category: install, command: "sudo zypper install fzf", variant: linux, platform: unix}
+  # Windows packages (table in the README)
+  - {category: install, command: "choco install fzf", variant: windows, platform: windows}
+  - {category: install, command: "scoop install fzf", variant: windows, platform: windows}
+  - {category: install, command: "winget install fzf", variant: windows, platform: windows}
+  - {category: install, command: "pacman -S $MINGW_PACKAGE_PREFIX-fzf", variant: windows, platform: windows}
+  # From git
+  - {category: install, command: "git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf", variant: native, platform: any}
+  - {category: setup, command: "~/.fzf/install", variant: native, platform: unix}
+  # Shell integration (setup; one per shell)
+  - {category: setup, command: "eval \"$(fzf --bash)\"", variant: native, platform: unix}
+  - {category: setup, command: "source <(fzf --zsh)", variant: native, platform: unix}
+  - {category: setup, command: "fzf --fish | source", variant: native, platform: unix}
+runtimes: []
+env_required: []
+services: []
+notes: >-
+  Many install commands sit in Markdown tables, which the extractor may not read as
+  commands. Shell integration lines are inside list items. The Go version is only
+  in BUILD.md, not the README.

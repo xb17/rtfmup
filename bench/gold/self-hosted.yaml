@@ -1,0 +1,12 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: self-hosted
+variant: docker
+steps: []
+runtimes: []
+env_required: []
+services: []
+notes: >-
+  The README has no commands at all (it links to the Sentry docs). This repo
+  exists to check that rtfmup reports no pipe-to-shell or sudo commands from it
+  and invents nothing. The repo root has install.sh, docker-compose.yml, .env,
+  and a pyproject.toml/uv.lock for its test tooling.

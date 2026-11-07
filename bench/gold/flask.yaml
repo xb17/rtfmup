@@ -1,0 +1,11 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: flask
+variant: native
+steps:
+  - {category: run, command: "flask run", variant: native, platform: any}
+runtimes: []
+env_required: []
+services: []
+notes: >-
+  The README has no install step. The only command is in an unlabeled fence:
+  `$ flask run` followed by one line of output (half the lines have a prompt).

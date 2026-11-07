@@ -1,0 +1,49 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: ripgrep
+variant: native
+steps:
+  # Package-manager installs: alternatives, one per platform or distro.
+  - {category: install, command: "brew install ripgrep", variant: macos, platform: macos}
+  - {category: install, command: "sudo port install ripgrep", variant: macos, platform: unix}
+  - {category: install, command: "choco install ripgrep", variant: windows, platform: windows}
+  - {category: install, command: "scoop install ripgrep", variant: windows, platform: windows}
+  - {category: install, command: "winget install BurntSushi.ripgrep.MSVC", variant: windows, platform: windows}
+  - {category: install, command: "sudo pacman -S ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo emerge sys-apps/ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo dnf install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo zypper install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo dnf config-manager --set-enabled crb", variant: linux, platform: unix}
+  - {category: install, command: "sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm", variant: linux, platform: unix}
+  - {category: install, command: "sudo subscription-manager repos --enable codeready-builder-for-rhel-10-$(arch)-rpms", variant: linux, platform: unix}
+  - {category: install, command: "nix-env --install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "flox install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "guix install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "curl -LO https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep_14.1.1-1_amd64.deb", variant: linux, platform: unix}
+  - {category: install, command: "sudo dpkg -i ripgrep_14.1.1-1_amd64.deb", variant: linux, platform: unix}
+  - {category: install, command: "sudo apt-get install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo pkg install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "doas pkg_add ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo pkgin install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo pkgman install ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "sudo pkgman install ripgrep_x86", variant: linux, platform: unix}
+  - {category: install, command: "sudo xbps-install -Syv ripgrep", variant: linux, platform: unix}
+  - {category: install, command: "cargo install ripgrep", variant: native, platform: any}
+  - {category: install, command: "cargo binstall ripgrep", variant: native, platform: any}
+  # Building from source.
+  - {category: install, command: "git clone https://github.com/BurntSushi/ripgrep", variant: native, platform: any}
+  - {category: setup, command: "cd ripgrep", variant: native, platform: any}
+  # The plan's rule table calls `cargo build` an install step; for a release build of
+  # the product itself a developer would call it build. Drew to decide.
+  - {category: build, command: "cargo build --release", variant: native, platform: any}
+  - {category: run, command: "./target/release/rg --version", variant: native, platform: unix}
+  - {category: build, command: "cargo build --release --features 'pcre2'", variant: native, platform: any}
+  - {category: setup, command: "rustup target add x86_64-unknown-linux-musl", variant: native, platform: any}
+  - {category: build, command: "cargo build --release --target x86_64-unknown-linux-musl", variant: native, platform: any}
+runtimes:
+  - {name: rust, spec: "1.96.0"}  # "ripgrep compiles with Rust 1.96.0 (stable) or newer"
+env_required: []
+services: []
+notes: >-
+  Every fence is unlabeled and every line starts with `$ `. `cargo test --all` is
+  a test command and excluded. One block mixes commands with a version output
+  line (`0.1.3`).

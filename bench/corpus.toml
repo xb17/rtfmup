@@ -1,0 +1,90 @@
+# Real-repo benchmark corpus (PLAN §4.2). DRAFT: the list needs Drew's approval.
+#
+# sha: pinned at annotation time (2026-11-07). The runner fetches exactly this commit,
+#      so results are reproducible even as the upstream READMEs change.
+# e2e: whether M3/M5 end-to-end runs are attempted. Analysis metrics run on all 10.
+# held_out: frozen set for honest reporting (repos 1, 4, 8). Don't tune rules on these,
+#      and only look at them at milestone ends.
+
+[[repo]]
+name = "datasette"
+url = "https://github.com/simonw/datasette"
+sha = "4b8cb5e14d4ab8ce0f23b766dffc0ef0dd8c6a83"
+ecosystem = "python"
+why = "Python CLI app"
+e2e = true
+held_out = true
+
+[[repo]]
+name = "full-stack-fastapi-template"
+url = "https://github.com/fastapi/full-stack-fastapi-template"
+sha = "aabb90126964a164e02aff39e7c385bb0598236d"
+ecosystem = "python+node+compose"
+why = "Python + Node + compose + .env: the multi-component, Docker-variant case"
+e2e = false
+
+[[repo]]
+name = "flask"
+url = "https://github.com/pallets/flask"
+sha = "49943b5a94413a530761350f04e896f76e8d620e"
+ecosystem = "python"
+why = "prose-heavy tutorial-style README"
+e2e = true
+
+[[repo]]
+name = "ripgrep"
+url = "https://github.com/BurntSushi/ripgrep"
+sha = "91f5d22ef48bde459d90a8c7dbeab416e97d0f2b"
+ecosystem = "rust"
+why = "Rust CLI"
+e2e = true
+held_out = true
+
+[[repo]]
+name = "fzf"
+url = "https://github.com/junegunn/fzf"
+sha = "96028e2a54023a8ff8240e985ae9c8e4f25c0089"
+ecosystem = "go"
+why = "Go CLI, many install paths (variant ambiguity)"
+e2e = true
+
+[[repo]]
+name = "express"
+url = "https://github.com/expressjs/express"
+sha = "43fca52d28a422c8be48fd489cbd4f2d6152bab6"
+ecosystem = "node"
+why = "Node library; runs its examples"
+e2e = true
+
+[[repo]]
+name = "uptime-kuma"
+url = "https://github.com/louislam/uptime-kuma"
+sha = "c4f983a457e4ccb18e0836890b0dd80f11c2739a"
+ecosystem = "node"
+why = "Node app, port health check, Docker alternative"
+e2e = true
+
+[[repo]]
+name = "laravel"
+url = "https://github.com/laravel/laravel"
+sha = "def7ce14811161f3c689a71ca8abc1369da44bd6"
+ecosystem = "php"
+why = "composer + .env.example + key:generate"
+e2e = true
+held_out = true
+
+[[repo]]
+name = "eshop"
+url = "https://github.com/dotnet/eShop"
+sha = "913acea66708a59595351174cee9b29f37179d29"
+ecosystem = "dotnet"
+why = ".NET + Aspire + Docker (heavy; analysis only)"
+e2e = false
+
+[[repo]]
+name = "self-hosted"
+url = "https://github.com/getsentry/self-hosted"
+sha = "22b9612e9f8da6db78a85920fd758856c2b3a572"
+ecosystem = "shell"
+why = "install-script driven: the pipe-to-shell safety case. Checks risk flags only. Never run."
+e2e = false

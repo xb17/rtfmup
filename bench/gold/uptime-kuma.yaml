@@ -1,0 +1,27 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: uptime-kuma
+variant: native
+steps:
+  # Non-Docker (chosen variant)
+  - {category: install, command: "git clone https://github.com/louislam/uptime-kuma.git", variant: native, platform: any}
+  - {category: setup, command: "cd uptime-kuma", variant: native, platform: any}
+  - {category: setup, command: "npm run setup", variant: native, platform: any}
+  - {category: run, command: "node server/server.js", variant: native, platform: any}
+  - {category: install, command: "npm install pm2 -g && pm2 install pm2-logrotate", variant: native, platform: any}
+  - {category: run, command: "pm2 start server/server.js --name uptime-kuma", variant: native, platform: any}
+  # Docker Compose
+  - {category: setup, command: "mkdir uptime-kuma", variant: docker, platform: any}
+  - {category: install, command: "curl -o compose.yaml https://raw.githubusercontent.com/louislam/uptime-kuma/master/compose.yaml", variant: docker, platform: any}
+  - {category: run, command: "docker compose up -d", variant: docker, platform: any}
+  # Docker command
+  - {category: run, command: "docker run -d --restart=always -p 3001:3001 -v uptime-kuma:/app/data --name uptime-kuma louislam/uptime-kuma:2", variant: docker, platform: any}
+runtimes:
+  - {name: node, spec: ">=20.4"}  # README; package.json engines says >= 26.2.0 (a real conflict)
+env_required: []
+services: []
+notes: >-
+  Three install paths (Compose, docker run, Non-Docker), so the variant ambiguity
+  is expected. The Non-Docker block mixes comments with commands. README says
+  Node >= 20.4 but package.json engines.node is ">= 26.2.0": rtfmup should report
+  this as a conflict. `cd uptime-kuma` appears under both Docker Compose and
+  Non-Docker; matching is by text and category, so it is listed once (native).

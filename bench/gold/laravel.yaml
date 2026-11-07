@@ -1,0 +1,16 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: laravel
+variant: native
+steps: []
+runtimes: []
+env_required:
+  - APP_KEY  # empty in .env.example; `php artisan key:generate` fills it
+services: []
+notes: >-
+  The README has no setup commands for running the app (the Laravel docs cover
+  that). The only commands, `composer require laravel/boost --dev` and
+  `php artisan boost:install`, are an optional add-on for AI coding agents, so
+  they are not gold steps; if the extractor reports them they count against
+  precision. composer.json has a `setup` script (composer install, copy .env,
+  key:generate, migrate, npm install, npm run build) that M2 should find from the
+  manifest. composer.json requires php ^8.3.

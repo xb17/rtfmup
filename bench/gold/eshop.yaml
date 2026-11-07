@@ -1,0 +1,18 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: eshop
+variant: native
+steps:
+  - {category: install, command: "git clone https://github.com/dotnet/eShop.git", variant: native, platform: any}
+  - {category: setup, command: "cd eShop", variant: native, platform: any}
+  - {category: run, command: "aspire run", variant: native, platform: any}
+  - {category: run, command: "aspire start", variant: native, platform: any}
+runtimes:
+  - {name: dotnet, spec: "10"}  # ".NET 10 SDK that satisfies global.json"
+env_required: []
+services: [postgres, redis, rabbitmq]  # named in the README's Azure deployment note
+notes: >-
+  Analysis only (heavy; needs a container runtime and the Aspire CLI). Tests, the
+  optional Foundry setup (`az login`, `aspire secret set ...`) and Azure deployment
+  (`aspire deploy`) are not core setup. `aspire --version` only verifies the CLI.
+  The commands are in `console` fences nested in numbered list items, and some
+  fences use PowerShell syntax (`$env:...`).

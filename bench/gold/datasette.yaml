@@ -1,0 +1,15 @@
+# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+repo: datasette
+variant: native
+steps:
+  - {category: install, command: "pip install datasette", variant: native, platform: any}
+  - {category: install, command: "brew install datasette", variant: macos, platform: macos}
+  - {category: run, command: "datasette serve path/to/database.db", variant: native, platform: any}
+runtimes:
+  - {name: python, spec: ">=3.11"}  # "Datasette requires Python 3.11 or higher."
+env_required: []
+services: []
+notes: >-
+  Every command in this README is in an indented code block (4 spaces) with no
+  prompt and no language, so the extractor has to decide about unlabeled
+  indented blocks. `datasette publish ...` deploys elsewhere and is not setup.
