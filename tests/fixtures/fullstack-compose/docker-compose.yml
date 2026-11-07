@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    ports:
+      - target: 5432
+        published: 5432
+  cache:
+    image: redis:7
+    ports:
+      - "6379:6379"
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env

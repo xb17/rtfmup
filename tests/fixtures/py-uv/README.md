@@ -11,3 +11,11 @@ uv sync
 ```bash
 uv run py-uv-fixture
 ```
+
+## Notes
+
+Also try:
+
+```bash
+uv run python -V
+```
