@@ -15,6 +15,8 @@ on:
 
 jobs:
   build:
+    # Gitea also runs .github/workflows; only publish from the public GitHub repo.
+    if: github.repository == 'xb17/rtfmup'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,6 +55,7 @@ jobs:
           path: dist/
 
   publish:
+    if: github.repository == 'xb17/rtfmup'
     needs:
       - build
     runs-on: ubuntu-latest
