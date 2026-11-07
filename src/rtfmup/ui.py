@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from rtfmup.host.probe import HostProfile
 from rtfmup.models import Analysis, SourceRef
 
 CATEGORY_ORDER = ("install", "setup", "build", "run", "test", "lint", "other")
@@ -190,3 +191,21 @@ def render_summary(a: Analysis, console: Console) -> None:
         p("Warnings")
         for w in a.warnings:
             p(f"  - {w}", markup=False, highlight=False)
+
+
+def render_host(h: HostProfile, console: Console) -> None:
+    """Human-readable host profile."""
+    console.print(f"[bold]rtfmup doctor[/bold] {h.os} {h.arch}")
+    console.print()
+    t = _table(console, "Tools", "tool", "version", "installed", "path / note")
+    for name, tool in h.tools.items():
+        if not tool.found:
+            t.add_row(name, "-", "not found", "", style="dim")
+            continue
+        shown = ", ".join(tool.versions) if len(tool.versions) > 1 else tool.version
+        t.add_row(name, shown or "?", "yes", tool.path or tool.note or "")
+    console.print(t)
+    if h.docker_daemon is not None:
+        console.print()
+        state = "reachable" if h.docker_daemon else "not reachable"
+        console.print(f"Docker daemon: {state}")

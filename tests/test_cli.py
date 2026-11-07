@@ -36,7 +36,6 @@ def test_scan_missing_path_exits_2(tmp_path):
     [
         ["up", "x"],
         ["plan", "x"],
-        ["doctor"],
         ["config"],
         ["export", "devcontainer", "x"],
         ["recipe", "show", "x"],
@@ -133,3 +132,39 @@ def test_scan_a_file_url_end_to_end(tmp_path, monkeypatch):
     data = json.loads(result.output[start:])
     assert [p["name"] for p in data["package_managers"]] == ["go"]
     assert data["git_head"] and data["git_dirty"] is False
+
+
+def _fake_profile():
+    from rtfmup.host.probe import HostProfile, ToolInfo
+
+    return HostProfile(
+        os="windows",
+        arch="x86_64",
+        tools={
+            "git": ToolInfo(found=True, path="C:/g/git.exe", version="2.56.0"),
+            "python": ToolInfo(
+                found=True, version="3.12.11", versions=["3.12.11", "3.11.14"]
+            ),
+            "scoop": ToolInfo(found=False),
+        },
+        docker_daemon=None,
+    )
+
+
+def test_doctor_human_output(monkeypatch):
+    monkeypatch.setattr("rtfmup.cli.probe_host", _fake_profile)
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "windows" in result.output and "x86_64" in result.output
+    assert "2.56.0" in result.output
+    assert "3.12.11, 3.11.14" in result.output
+    assert "not found" in result.output  # scoop
+
+
+def test_doctor_json(monkeypatch):
+    monkeypatch.setattr("rtfmup.cli.probe_host", _fake_profile)
+    result = runner.invoke(app, ["doctor", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["os"] == "windows"
+    assert data["tools"]["git"]["version"] == "2.56.0"

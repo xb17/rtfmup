@@ -12,6 +12,7 @@ from rich.console import Console
 
 from rtfmup import __version__, ui
 from rtfmup.analyze import analyze
+from rtfmup.host.probe import probe_host
 from rtfmup.models import Analysis
 from rtfmup.source import SourceError, resolve
 
@@ -72,9 +73,21 @@ def plan(target: TargetArg) -> None:
 
 
 @app.command()
-def doctor() -> None:
-    """Probe the host: OS, shells, installed tools."""
-    _stub("doctor")
+def doctor(
+    json_out: Annotated[
+        bool, typer.Option("--json", help="Emit the host profile as JSON.")
+    ] = False,
+) -> None:
+    """Probe the host: OS, shells, installed tools (read-only)."""
+    profile = probe_host()
+    if json_out:
+        text = profile.model_dump_json(indent=2) + "\n"
+        sys.stdout.buffer.write(text.encode("utf-8"))
+        sys.stdout.buffer.flush()
+    else:
+        ui.render_host(
+            profile, Console(width=max(100, shutil.get_terminal_size().columns))
+        )
 
 
 @app.command()
