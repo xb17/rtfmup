@@ -309,6 +309,8 @@ def _walk(
             continue
         st = state.setdefault(tuple(c.section_path), {"cwd": ".", "env": {}})
         text = c.text.strip()
+        if not _variant_ok(c, variant, host_os):
+            continue  # a section for another path (or OS): none of it applies
 
         if clone := parse_clone(text):
             url, dest = clone
@@ -346,25 +348,13 @@ def _walk(
                 continue
             cwd, text = new, m.group("rest").strip()
 
-        if c.category not in PLAN_CATEGORIES or not _variant_ok(c, variant, host_os):
-            # Still honour `export` in sections we otherwise skip? No: skipped means skipped.
+        if c.category not in PLAN_CATEGORIES:
             continue
 
-        translated = to_windows(text) if text.startswith("export") else None
-        if translated and translated.env and not translated.shell_text:
-            secret = re.compile(
-                r"KEY|SECRET|TOKEN|PASSWORD|PASS|PRIVATE", re.IGNORECASE
-            )
-            for k, v in translated.env.items():
-                if secret.search(k) or "placeholder" in c.flags:
-                    out.gaps.append(
-                        Gap(
-                            kind="missing_env",
-                            message=f"README exports {k} ({_where(c)}); set it yourself, rtfmup will not store its value.",
-                        )
-                    )
-                else:
-                    st["env"][k] = v
+        assigned = _env_assignment(text)
+        if assigned:
+            for k, v in assigned.items():
+                _set_env(out, st["env"], c, k, v)
             continue
 
         owner = owner_of(a.components, cwd)
@@ -379,6 +369,43 @@ def _walk(
                 step_cwd = comp.path
         out.cands.append(_Cand(c, text, step_cwd, dict(st["env"])))
     return out
+
+
+_PS_ENV = re.compile(
+    r"""^\$env:(?P<k>[A-Za-z_]\w*)\s*=\s*(?:"(?P<d>[^"$`]*)"|'(?P<s>[^']*)'|(?P<b>[^\s"'$`]+))\s*$"""
+)
+_SECRET_NAME = re.compile(r"KEY|SECRET|TOKEN|PASSWORD|PASS|PRIVATE", re.IGNORECASE)
+
+
+def _env_assignment(text: str) -> dict[str, str] | None:
+    """`export K=V` (bash) or `$env:K = "V"` (PowerShell) -> {K: V}, else None."""
+    if text.startswith("export"):
+        translated = to_windows(text)
+        return translated.env if translated and not translated.shell_text else None
+    if m := _PS_ENV.match(text):
+        value = next(m.group(g) for g in ("d", "s", "b") if m.group(g) is not None)
+        return {m.group("k"): value}
+    return None
+
+
+def _set_env(out: _Walk, env: dict[str, str], c: Command, key: str, value: str) -> None:
+    """Record a step env var, unless it is secret-like or a placeholder."""
+    if (
+        _SECRET_NAME.search(key)
+        or "placeholder" in c.flags
+        or re.search(r"<[^>]+>", value)
+    ):
+        out.gaps.append(
+            Gap(
+                kind="missing_env",
+                message=(
+                    f"README sets {key} ({_where(c)}); set it yourself, "
+                    "rtfmup will not store its value."
+                ),
+            )
+        )
+    else:
+        env[key] = value
 
 
 def _where(c: Command) -> str:
@@ -798,6 +825,8 @@ def _choose_run(
         )
 
     if readme_runs and not want_manifest:
+        # A run command from a test, deploy or optional section is a last resort.
+        readme_runs.sort(key=lambda c: _section_badness(c.cmd.section_path))
         return readme_step(readme_runs[0])
 
     if variant == "docker":
@@ -840,6 +869,26 @@ def _choose_run(
             **common,
         )
     return None
+
+
+_BAD_SECTIONS = (
+    (re.compile(r"(?i)\b(?:tests?|testing|e2e|ci)\b"), 3),
+    (re.compile(r"(?i)\b(?:deploy(?:ment|ing)?|publish(?:ing)?|releas(?:e|ing))\b"), 2),
+    (re.compile(r"(?i)\boptional\b"), 1),
+)
+
+
+def _section_badness(section_path: list[str]) -> int:
+    """0 for an ordinary section; higher for test, deploy and optional ones."""
+    return max(
+        (
+            score
+            for title in section_path[1:]
+            for rx, score in _BAD_SECTIONS
+            if rx.search(title)
+        ),
+        default=0,
+    )
 
 
 def _build_needed(

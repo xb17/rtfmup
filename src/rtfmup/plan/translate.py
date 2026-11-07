@@ -42,7 +42,11 @@ def to_windows(text: str) -> Translated | None:
     text = text.strip()
     if (m := _EXPORT.match(text)) and not _OPERATORS.search(text) and "$" not in text:
         env: dict[str, str] = {}
-        for pair in shlex.split(m.group("pairs")):
+        try:
+            pairs = shlex.split(m.group("pairs"))
+        except ValueError:  # a quote opened on this line and closed on a later one
+            return None
+        for pair in pairs:
             key, _, value = pair.partition("=")
             env[key] = value
         return Translated(env=env)

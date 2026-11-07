@@ -166,6 +166,8 @@ HEADING_CATEGORY: list[tuple[re.Pattern[str], str, str]] = [
 ]  # fmt: skip
 
 _VARIANTS: list[tuple[re.Pattern[str], str]] = [
+    # "Non-Docker", "Without Docker": the opposite of the next rule
+    (re.compile(r"(?i)\b(?:non|no|without)[\s-]*(?:docker|container|compose|podman)"), "native"),
     (re.compile(r"(?i)docker|container|compose|podman"), "docker"),
     (re.compile(r"(?i)\bwindows\b|\bwin(?:10|11)\b"), "windows"),
     (re.compile(r"(?i)\bmac(?:os)?\b|\bos ?x\b|homebrew"), "macos"),

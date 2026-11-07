@@ -22,6 +22,14 @@ from rtfmup.analyze import build_analysis
 CORPUS = load_corpus(BENCH / "corpus.toml")
 
 
+@pytest.fixture(autouse=True)
+def fixed_host(monkeypatch):
+    """Benchmark runs probe the host; tests use a fixed one instead."""
+    from hosts import windows_full
+
+    monkeypatch.setattr("run.probe_host", windows_full)
+
+
 # --- the committed corpus and gold files ---------------------------------------------
 
 
@@ -303,3 +311,90 @@ def test_no_held_out_flag_skips_those_repos(tmp_path, monkeypatch):
         ]
     )
     assert seen == ["py-uv"]
+
+
+# --- plan order (T2.6) -----------------------------------------------------------------
+
+
+def test_lcs():
+    from metrics import lcs
+
+    assert lcs([], []) == 0
+    assert lcs(list("abcd"), list("acbd")) == 3
+    assert lcs(list("abc"), list("xyz")) == 0
+    assert lcs(list("abc"), list("abc")) == 3
+
+
+def _gold(*steps: tuple[str, str]) -> Gold:
+    return Gold(
+        repo="x",
+        variant="native",
+        steps=[GoldStep(category=c, command=t) for c, t in steps],
+        runtimes=[],
+        env_required=[],
+        services=[],
+    )
+
+
+def test_gold_env_copy_becomes_the_env_token():
+    from metrics import ENV_TOKEN, gold_items
+
+    gold = _gold(("install", "npm ci"), ("setup", "cp .env.example .env"))
+    assert gold_items(gold) == [("npm ci", "install"), (ENV_TOKEN, "setup")]
+
+
+def test_plan_order_scores_the_fixture_plan_against_its_gold(tmp_path):
+    import shutil
+
+    from hosts import windows_full
+    from metrics import plan_order
+    from run import plan_for
+
+    root = tmp_path / "node-pnpm"
+    shutil.copytree(FIXTURES / "node-pnpm", root)
+    analysis = build_analysis(root)
+    gold = _gold(
+        ("install", "pnpm install"),
+        ("setup", "cp .env.example .env"),  # the plan folds this into its env step
+        ("run", "pnpm dev"),
+    )
+    plan, note = plan_for(analysis, gold, windows_full(), None)
+    assert plan is not None and note == ""
+    assert plan_order(analysis, plan, gold) == (3, 3)
+    wrong_order = _gold(("run", "pnpm dev"), ("install", "pnpm install"))
+    assert plan_order(analysis, plan, wrong_order) == (1, 2)
+
+
+def test_plan_for_answers_questions_with_the_gold_variant(tmp_path):
+    import shutil
+
+    from hosts import windows_full
+    from run import plan_for
+
+    root = tmp_path / "docker-or-native"
+    shutil.copytree(FIXTURES / "docker-or-native", root)
+    analysis = build_analysis(root)
+    plan, note = plan_for(
+        analysis, _gold(("run", "python app.py")), windows_full(), None
+    )
+    assert plan is not None and plan.variant == "native" and note == ""
+
+
+def test_gold_leaves_out_cloning_the_repo_itself():
+    from metrics import gold_items
+
+    own = "https://github.com/acme/widget"
+    gold = _gold(
+        ("install", "git clone https://github.com/acme/widget.git"),
+        ("setup", "cd widget"),
+        ("install", "npm ci"),
+        ("install", "git clone https://github.com/acme/other.git"),
+        ("install", "git clone https://github.com/acme/widget --depth 1 && cd widget"),
+        ("setup", "cd elsewhere"),
+    )
+    assert gold_items(gold, own) == [
+        ("npm ci", "install"),
+        ("git clone https://github.com/acme/other.git", "install"),
+        ("cd elsewhere", "setup"),
+    ]
+    assert len(gold_items(gold, None)) == 6  # without a URL nothing is dropped

@@ -73,6 +73,8 @@ def test_translated(text, expected):
         "export A",
         "cp a b && echo hi",
         "export A=$(whoami)",
+        'export FZF_ALT_C_OPTS="',  # unterminated quote (multi-line value in a README)
+        "export A='x",
     ],
 )
 def test_not_translated(text):

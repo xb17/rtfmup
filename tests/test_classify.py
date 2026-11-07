@@ -138,6 +138,10 @@ CASES = [
     ("pm2-runtime start x", ["Setup"], "bash", "setup", None, A, []),  # heading only: not pm2
     # --- variants from headings ---
     ("npm install", ["Docker"], "bash", "install", "docker", A, []),
+    ("npm install", ["Install", "Non-Docker"], "bash", "install", "native", A, []),
+    ("npm install", ["Install", "Without Docker"], "bash", "install", "native", A, []),
+    ("npm install", ["Install", "No containers"], "bash", "install", "native", A, []),
+    ("docker compose up", ["Install", "Docker Compose"], "bash", "run", "docker", A, []),
     ("npm install", ["Install", "From source"], "bash", "install", "native", A, []),
     ("npm install", ["Install", "Windows", "Details"], "bash", "install", "windows", A, []),
     ("npm install", ["Install", "Ubuntu/Debian"], "bash", "install", "linux", A, []),

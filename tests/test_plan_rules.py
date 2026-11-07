@@ -315,3 +315,43 @@ def test_manifest_defaults_are_medium_installs(tmp_path):
         "low",
         "low",
     ]
+
+
+def test_a_cd_in_a_section_for_another_variant_is_not_a_gap(tmp_path):
+    readme = (
+        "# w\n\n## Install\n\n### Docker Compose\n\n```bash\nmkdir w\ncd w\n"
+        "docker compose up -d\n```\n\n### Non-Docker\n\n```bash\nnpm start\n```\n"
+    )
+    root = _repo(tmp_path, "w", {"package.json": PKG, "README.md": readme})
+    plan = _build(root, Choices(variant="native"))
+    assert not [g for g in plan.gaps if g.kind == "unresolved"]
+    assert _texts(plan)[-1] == "npm start"
+
+
+def test_powershell_env_assignment_is_step_env_like_export(tmp_path):
+    body = (
+        '$env:PORT = "4000"\n$env:API_TOKEN = "abc"\n'
+        '$env:REGION = "<your-region>"\nnpm start'
+    )
+    root = _repo(tmp_path, "w", {"package.json": PKG, "README.md": _readme(body)})
+    plan = _build(root)
+    run = plan.steps[-1]
+    assert run.env == {
+        "PORT": "4000"
+    }  # secret-like and placeholder values are not kept
+    assert "abc" not in plan.model_dump_json()
+    missing = [g.message for g in plan.gaps if g.kind == "missing_env"]
+    assert any("API_TOKEN" in m for m in missing) and any(
+        "REGION" in m for m in missing
+    )
+    assert not any("$env:" in t for t in _texts(plan))
+
+
+def test_run_command_from_a_test_section_ranks_last(tmp_path):
+    readme = (
+        "# w\n\n## Running tests\n\n```bash\nnpm run e2e-serve\n```\n\n"
+        "## Run\n\n```bash\nnpm start\n```\n"
+    )
+    pkg = '{"name": "w", "scripts": {"start": "x", "e2e-serve": "y"}}'
+    root = _repo(tmp_path, "w", {"package.json": pkg, "README.md": readme})
+    assert _texts(_build(root))[-1] == "npm start"

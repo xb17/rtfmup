@@ -51,6 +51,7 @@ case-sensitive). Only README-sourced extracted commands count (CI and Procfile c
 | precision | extracted install/setup/build/run commands that match a gold step, divided by all of them |
 | category accuracy | among gold steps whose text was extracted, the share with the same category |
 | env recall | gold required variables found with `required` in `{required, unknown}`, divided by gold required variables |
+| plan order (M2) | longest common subsequence between the plan's steps and the gold steps, divided by the gold steps compared. Matches on README text and category; the plan's single `env` step matches a gold `cp .env.example .env`. Gold steps that clone the repo itself, and the `cd` after it, are left out of both sides: rtfmup starts inside the repo. The plan is built for the gold variant, with other questions answered by their first option (listed under "Plan notes"). |
 
 `n/a` means the denominator is zero (for example a README with no gold steps). Aggregates are
 micro-averaged (totals summed over repos, then divided). The report also lists risk flags
@@ -67,3 +68,8 @@ milestone ends. `run.py` prints them in a separate table.
 Corpus and gold approved by Drew. Known gaps, deliberately not tuned for: commands in Markdown
 table cells (`fzf`) and a committed `.env` used as a template. The `datasette` held-out result
 is contaminated: the indented-block rule was added after its README was read.
+
+Plan order is capped by how the gold is written: for `fzf` and `uptime-kuma` the gold lists
+every install path the README offers, but a plan follows one. The plan also orders by kind
+(install, env, setup, build, run) rather than README order, which costs a little where a
+README interleaves them.

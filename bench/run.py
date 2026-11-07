@@ -29,10 +29,15 @@ from metrics import (
     RepoScore,
     aggregate,
     pct,
+    plan_order,
     score_repo,
 )
 
 from rtfmup.analyze import build_analysis
+from rtfmup.host.probe import HostProfile, probe_host
+from rtfmup.models import Analysis
+from rtfmup.plan.build import BadChoice, Choices, Unanswered, build_plan
+from rtfmup.plan.model import Plan
 
 HERE = Path(__file__).parent
 
@@ -43,11 +48,49 @@ def load_gold(directory: Path, name: str) -> Gold:
         return Gold.model_validate(yaml.safe_load(fh))
 
 
+def plan_for(
+    analysis: Analysis, gold: Gold, host: HostProfile, url: str | None
+) -> tuple[Plan | None, str]:
+    """Build the plan the way a user answering with the gold variant would.
+
+    Variant: the gold's. Component and run questions: the first option. Returns
+    (plan, note); the note says what was auto-answered, or why there is no plan.
+    """
+    choices = Choices(variant=gold.variant)
+    answered: list[str] = []
+    for _ in range(5):
+        try:
+            plan = build_plan(analysis, host, choices, own_urls=[url] if url else [])
+            return plan, ("answered " + ", ".join(answered)) if answered else ""
+        except Unanswered as exc:
+            update: dict[str, str] = {}
+            for q in exc.questions:
+                if q.id == "amb-component":
+                    update["component"] = q.options[0]
+                elif q.id == "amb-run":
+                    update["run"] = q.options[0]
+                elif q.id == "amb-variant":
+                    update["variant"] = gold.variant
+                answered.append(
+                    f"{q.id}={q.options[0] if q.id != 'amb-variant' else gold.variant}"
+                )
+            if not update:
+                return None, "unanswerable question"
+            choices = Choices(**{**choices.__dict__, **update})
+        except BadChoice as exc:
+            if choices.variant is None:
+                return None, f"bad choice: {exc}"
+            choices = Choices(**{**choices.__dict__, "variant": None})
+    return None, "too many questions"
+
+
 def run_bench(
     corpus: list[dict],
     gold_dir: Path,
     checkout: Callable[[dict], Path] = ensure_checkout,
+    host: HostProfile | None = None,
 ) -> list[RepoScore]:
+    host = host or probe_host()
     scores: list[RepoScore] = []
     for repo in corpus:
         gold = load_gold(gold_dir, repo["name"])
@@ -55,15 +98,24 @@ def run_bench(
         start = time.perf_counter()
         analysis = build_analysis(root)  # no cache: never write into the clone
         seconds = time.perf_counter() - start
-        scores.append(
-            score_repo(
-                analysis,
-                gold,
-                ecosystem=repo["ecosystem"],
-                held_out=bool(repo.get("held_out", False)),
-                seconds=seconds,
-            )
+        score = score_repo(
+            analysis,
+            gold,
+            ecosystem=repo["ecosystem"],
+            held_out=bool(repo.get("held_out", False)),
+            seconds=seconds,
         )
+        try:
+            plan, note = plan_for(analysis, gold, host, repo.get("url"))
+        except Exception as exc:  # noqa: BLE001  a crash is a finding: report it, keep going
+            plan, note = None, f"PLAN CRASHED: {type(exc).__name__}: {exc}"
+        score.plan_note = note
+        if plan is not None:
+            score.plan_steps = len(plan.steps)
+            score.order_lcs, score.order_gold = plan_order(
+                analysis, plan, gold, repo.get("url")
+            )
+        scores.append(score)
     return scores
 
 
@@ -83,6 +135,7 @@ def _agg_row(a: Aggregate) -> list[str]:
         pct(a.precision),
         pct(a.category_accuracy),
         pct(a.env_recall),
+        pct(a.order_score),
         f"{a.seconds:.2f}",
     ]
 
@@ -94,6 +147,7 @@ AGG_HEADER = [
     "precision",
     "category acc.",
     "env recall",
+    "plan order",
     "seconds",
 ]
 
@@ -105,12 +159,12 @@ def render(scores: list[RepoScore]) -> str:
 
     lines += ["## Development set (per repo)", ""]
     lines += _table(
-        ["repo", "ecosystem", "gold", "recall", "extracted", "precision", "cat. acc.", "env", "risk flags", "conflicts", "questions", "sec"],
+        ["repo", "ecosystem", "gold", "recall", "extracted", "precision", "cat. acc.", "env", "plan order", "plan steps", "risk flags", "conflicts", "questions", "sec"],
         [
             [
                 s.name, s.ecosystem, str(s.gold_steps), pct(s.recall), str(s.extracted),
                 pct(s.precision), pct(s.category_accuracy), pct(s.env_recall),
-                str(s.risk_flags), str(s.conflicts), str(s.ambiguities), f"{s.seconds:.2f}",
+                pct(s.order_score), str(s.plan_steps), str(s.risk_flags), str(s.conflicts), str(s.ambiguities), f"{s.seconds:.2f}",
             ]
             for s in dev
         ],
@@ -142,6 +196,7 @@ def render(scores: list[RepoScore]) -> str:
                 "precision",
                 "cat. acc.",
                 "env",
+                "plan order",
             ],
             [
                 [
@@ -153,11 +208,21 @@ def render(scores: list[RepoScore]) -> str:
                     pct(s.precision),
                     pct(s.category_accuracy),
                     pct(s.env_recall),
+                    pct(s.order_score),
                 ]
                 for s in held
             ],
         )
         lines += ["", *_table(AGG_HEADER, [_agg_row(aggregate("held-out", held))])]
+
+    notes = [f"- {s.name}: {s.plan_note}" for s in scores if s.plan_note]
+    if notes:
+        lines += [
+            "",
+            "## Plan notes (auto-answered questions, missing plans)",
+            "",
+            *notes,
+        ]
 
     lines += ["", "## Misses and extras (development set)", ""]
     for s in dev:
