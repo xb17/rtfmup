@@ -21,7 +21,8 @@ def test_scan_json():
     result = runner.invoke(app, ["scan", str(FIXTURE), "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["languages"] == ["Python"]
+    assert data["schema_version"] == "1"
+    assert [m["name"] for m in data["package_managers"]] == ["uv"]
 
 
 def test_scan_missing_path_exits_2(tmp_path):
@@ -74,3 +75,61 @@ def test_scan_is_not_up_scan(capsys):
     capsys.readouterr()
     assert main(["up", "scan"]) == 2
     assert "'up' is not implemented yet" in capsys.readouterr().err
+
+
+def test_scan_json_validates_against_the_schema_and_is_lf():
+    from rtfmup.models import Analysis
+
+    result = runner.invoke(app, ["scan", str(FIXTURE), "--json"])
+    assert Analysis.model_validate_json(result.output).readme == "README.md"
+    assert chr(13) not in result.output
+
+
+def test_scan_summary_mentions_the_essentials():
+    result = runner.invoke(app, ["scan", str(FIXTURE)])
+    assert result.exit_code == 0
+    for text in ("Components", "uv", "README.md", "Commands:"):
+        assert text in result.output
+
+
+def test_scan_fresh_flag_is_accepted():
+    assert (
+        runner.invoke(app, ["scan", str(FIXTURE), "--fresh", "--json"]).exit_code == 0
+    )
+
+
+def test_scan_default_target_is_the_current_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["scan", "--json"])
+    assert result.exit_code == 0 and json.loads(result.output)["readme"] is None
+
+
+def test_scan_git_url_failure_exits_2(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    result = runner.invoke(app, ["scan", (tmp_path / "missing-repo").as_uri()])
+    assert result.exit_code == 2
+    assert "git clone" in result.output
+
+
+def test_scan_a_file_url_end_to_end(tmp_path, monkeypatch):
+    import subprocess
+
+    remote = tmp_path / "remote"
+    remote.mkdir()
+    (remote / "go.mod").write_text("module x\n\ngo 1.22\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["commit", "-qm", "x"]):
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", *args],
+            cwd=remote, check=True, capture_output=True,
+        )  # fmt: skip
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "cache"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    monkeypatch.setenv("HOME", str(tmp_path / "cache"))
+    result = runner.invoke(app, ["scan", remote.as_uri(), "--json"])
+    assert result.exit_code == 0, result.output
+    start = result.output.index("{")
+    data = json.loads(result.output[start:])
+    assert [p["name"] for p in data["package_managers"]] == ["go"]
+    assert data["git_head"] and data["git_dirty"] is False

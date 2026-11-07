@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
-
 import pytest
 from conftest import FIXTURES
 
+from rtfmup.analyze import build_analysis
 from rtfmup.detect.components import discover, expand, parse_go_work
-from rtfmup.scan import scan
 
 
 def ids(name: str) -> list[str]:
@@ -226,8 +224,7 @@ def test_runnable_heuristics(tmp_path):
     assert discover(tmp_path).components[0].runnable
 
 
-def test_scan_json_includes_components_and_ambiguities():
-    result = scan(FIXTURES / "polyglot-server-client")
-    data = json.loads(json.dumps(result.to_dict()))
-    assert [c["id"] for c in data["components"]] == ["root", "client", "server"]
-    assert data["ambiguities"][0]["options"] == ["client", "server"]
+def test_analysis_includes_components_and_ambiguities():
+    data = build_analysis(FIXTURES / "polyglot-server-client")
+    assert [c.id for c in data.components] == ["root", "client", "server"]
+    assert data.ambiguities[0].options == ["client", "server"]

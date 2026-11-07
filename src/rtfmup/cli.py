@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
-from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich.console import Console
 
 from rtfmup import __version__, ui
+from rtfmup.analyze import analyze
 from rtfmup.models import Analysis
-from rtfmup.scan import format_summary, scan
+from rtfmup.source import SourceError, resolve
 
 EXIT_USAGE = 2
 
@@ -104,21 +106,30 @@ def recipe_show(target: TargetArg) -> None:
 
 @app.command("scan")
 def scan_cmd(
-    path: Annotated[Path, typer.Argument(help="Repo directory.")] = Path("."),
+    target: Annotated[str, typer.Argument(help="Local directory or Git URL.")] = ".",
     json_out: Annotated[
-        bool, typer.Option("--json", help="Emit JSON instead of a summary.")
+        bool, typer.Option("--json", help="Emit the analysis as JSON.")
+    ] = False,
+    fresh: Annotated[
+        bool, typer.Option("--fresh", help="Ignore the cached analysis.")
     ] = False,
 ) -> None:
-    """Detect manifests in a local repo."""
+    """Analyze TARGET (read-only) and show what rtfmup found."""
     try:
-        result = scan(path)
-    except NotADirectoryError as exc:
+        source = resolve(target)
+        analysis = analyze(source.root, fresh=fresh)
+    except (SourceError, NotADirectoryError) as exc:
         ui.error(str(exc))
         raise typer.Exit(EXIT_USAGE) from exc
     if json_out:
-        typer.echo(json.dumps(result.to_dict(), indent=2))
+        # Bytes + LF so the output is identical on every OS.
+        text = analysis.model_dump_json(indent=2) + "\n"
+        sys.stdout.buffer.write(text.encode("utf-8"))
+        sys.stdout.buffer.flush()
     else:
-        typer.echo(format_summary(result))
+        ui.render_summary(
+            analysis, Console(width=max(100, shutil.get_terminal_size().columns))
+        )
 
 
 def _known_names() -> set[str]:
