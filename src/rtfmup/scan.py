@@ -18,6 +18,7 @@ from rtfmup.models import (
     Runtime,
     Service,
 )
+from rtfmup.readme.locate import locate
 
 # filename -> (category, label). Order is the display order.
 MANIFESTS: dict[str, tuple[str, str]] = {
@@ -54,6 +55,8 @@ class ScanResult:
     deployments: list[Deployment] = field(default_factory=list)
     components: list[Component] = field(default_factory=list)
     ambiguities: list[Ambiguity] = field(default_factory=list)
+    readme: str | None = None
+    readme_format: str | None = None
     has_docker: bool = False
     has_devcontainer: bool = False
     warnings: list[str] = field(default_factory=list)
@@ -83,6 +86,8 @@ class ScanResult:
             "deployments": [x.model_dump(mode="json") for x in self.deployments],
             "components": [c.model_dump(mode="json") for c in self.components],
             "ambiguities": [a.model_dump(mode="json") for a in self.ambiguities],
+            "readme": self.readme,
+            "readme_format": self.readme_format,
             "has_docker": self.has_docker,
             "has_devcontainer": self.has_devcontainer,
             "warnings": self.warnings,
@@ -111,7 +116,11 @@ def scan(path: str | Path) -> ScanResult:
     result.deployments = detection.deployments
     result.has_docker = detection.has_docker
     result.has_devcontainer = detection.has_devcontainer
-    result.warnings = detection.warnings
+    located = locate(root)
+    if located.readme:
+        result.readme = located.readme.rel
+        result.readme_format = located.readme.format
+    result.warnings = sorted(detection.warnings + located.warnings)
     return result
 
 
