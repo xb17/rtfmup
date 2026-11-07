@@ -40,6 +40,10 @@ class Block:
     children: list[Block] = field(default_factory=list)  # list item contents
     depth: int = 0  # list nesting depth
     ordered: bool = False  # list items only
+    # First line of a fence's content when it is not simply line_start + 1 (rST).
+    content_line: int | None = None
+    approximate: bool = False  # line numbers are a best guess (rST paragraphs, tables)
+    low_confidence: bool = False  # rST bare `::` literal block: language unknown
 
     @property
     def lang(self) -> str:
@@ -49,6 +53,8 @@ class Block:
     @property
     def content_line_start(self) -> int:
         """First line of a fence's content (the line after the opening marker)."""
+        if self.content_line is not None:
+            return self.content_line
         return self.line_start + 1 if self.kind == "fence" else self.line_start
 
     def walk(self) -> Iterator[Block]:
@@ -67,6 +73,8 @@ class Section:
     path: list[str] = field(default_factory=list)  # heading trail incl. this title
     blocks: list[Block] = field(default_factory=list)
     children: list[Section] = field(default_factory=list)
+    approximate: bool = False  # heading line is a best guess (rST)
+    warnings: list[str] = field(default_factory=list)  # set on the root only
 
     def walk_sections(self) -> Iterator[Section]:
         yield self
