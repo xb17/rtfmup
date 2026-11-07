@@ -169,9 +169,18 @@ _VARIANTS: list[tuple[re.Pattern[str], str]] = [
 ]  # fmt: skip
 
 
+def _headings(section_path: list[str]) -> list[str]:
+    """Headings that can describe a command's context.
+
+    The first heading is usually the project title ("my-compose-tool"), which says
+    nothing about the section, so it is ignored when there are deeper headings.
+    """
+    return section_path[1:] if len(section_path) > 1 else section_path
+
+
 def variant_for(section_path: list[str]) -> str | None:
     """Deepest heading that names a variant wins."""
-    for title in reversed(section_path):
+    for title in reversed(_headings(section_path)):
         for rx, name in _VARIANTS:
             if rx.search(title):
                 return name
@@ -179,7 +188,7 @@ def variant_for(section_path: list[str]) -> str | None:
 
 
 def heading_category(section_path: list[str]) -> tuple[str, str] | None:
-    for title in reversed(section_path):
+    for title in reversed(_headings(section_path)):
         for rx, cat, reason in HEADING_CATEGORY:
             if rx.search(title):
                 return cat, f"{reason} ({title})"
