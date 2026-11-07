@@ -40,7 +40,9 @@ rtfmup plan <path>  # show the execution plan without running anything
 3. **Executor (Windows first):** invokes existing tools (`uv`, `npm`, `cargo`, …), guides `.env` setup, runs the project, and health-checks it.
 4. **Polish:** recovery from common failures and clearer diagnostics.
 
-Later: cross-platform support, deployment-file awareness, a learning mode that writes the spec the repo was missing, and an opt-in local-LLM assist.
+**Platform:** Windows only for now. Linux and macOS support is planned for later versions.
+
+Later: Linux and macOS support, deployment-file awareness, a learning mode that writes the spec the repo was missing, and an opt-in local-LLM assist.
 
 ## License
 
