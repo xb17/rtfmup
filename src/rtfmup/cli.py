@@ -15,12 +15,18 @@ def build_parser() -> argparse.ArgumentParser:
         prog="rtfmup",
         description="Set up any repo from its README. (Early development: only `scan` works.)",
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
     sub = parser.add_subparsers(dest="command")
 
     p_scan = sub.add_parser("scan", help="detect manifests in a local repo")
-    p_scan.add_argument("path", nargs="?", default=".", help="repo directory (default: .)")
-    p_scan.add_argument("--json", action="store_true", help="emit JSON instead of a summary")
+    p_scan.add_argument(
+        "path", nargs="?", default=".", help="repo directory (default: .)"
+    )
+    p_scan.add_argument(
+        "--json", action="store_true", help="emit JSON instead of a summary"
+    )
     return parser
 
 
