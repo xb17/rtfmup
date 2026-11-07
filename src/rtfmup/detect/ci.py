@@ -15,6 +15,12 @@ SHELLS = {
 }
 
 
+# GitHub's default `run:` shell when none is given: bash on Linux and macOS runners,
+# pwsh on Windows runners. An unrecognisable `runs-on` (a matrix expression) stays
+# "unknown" because we cannot tell which of the two applies.
+DEFAULT_SHELL = {"linux": "bash", "macos": "bash", "windows": "powershell"}
+
+
 def _platform(runs_on: object) -> str:
     text = str(runs_on).lower()
     if "windows" in text:
@@ -101,7 +107,7 @@ def _workflow(d: Detection, name: str, text: str, data: object) -> None:
             shell = (
                 SHELLS.get(str(shell_raw).split()[0], "unknown")
                 if shell_raw
-                else "unknown"
+                else DEFAULT_SHELL.get(platform, "unknown")
             )
             for cmd in logical_lines(
                 step["run"], "`" if shell == "powershell" else "\\"

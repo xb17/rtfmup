@@ -133,6 +133,11 @@ RULES: list[Rule] = [
     _r(r"^(?:docker|podman)\s+(?:pull|image\s+pull)\b", "install", "prefix:docker pull"),
     _r(r"^make\s+install\b", "install", "prefix:make install"),
     # run
+    # process managers: starting the app is a run; registering it at boot is setup;
+    # inspecting it is neither (without a rule the "Install" heading would decide)
+    _r(r"^(?:pm2|forever)\s+(?:start|restart|reload)\b|^supervisorctl\s+(?:start|restart)\b", "run", "prefix:process manager start"),
+    _r(r"^pm2\s+(?:startup|save|resurrect)\b", "setup", "prefix:process manager boot setup"),
+    _r(r"^(?:pm2\s+(?:monit|logs?|ls|list|status|stop|delete|flush)|forever\s+(?:list|stop|stopall))\b", "other", "prefix:process manager admin"),
     _r(r"^(?:docker[- ]compose|docker\s+compose|podman[- ]compose)\s+(?:up|start|run)\b|^(?:docker|podman)\s+(?:run|start)\b", "run", "prefix:docker run"),
     _r(rf"^{PKG_MGRS}\s+(?:run\s+)?(?:dev|start|serve|watch|develop|preview)\b|^npx\s+(?:next|vite|nodemon|ts-node|tsx)\b", "run", "script:dev/start/serve"),
     _r(r"^(?:\S+\s+)*?run\s+(?:dev|start|serve)\b", "run", "match:run dev/start/serve"),

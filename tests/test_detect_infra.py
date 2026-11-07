@@ -281,10 +281,10 @@ def test_ci_run_steps(tmp_path):
         for c in d.commands
     ]
     assert got == [
-        ("uv sync", "unknown", "windows", ["ci", "test"], 8),
+        ("uv sync", "powershell", "windows", ["ci", "test"], 8),  # default: pwsh
         ("uv run ruff check .", "powershell", "windows", ["ci", "test"], 13),
         ("uv run pytest -x", "powershell", "windows", ["ci", "test"], 14),
-        ("make lint", "unknown", "linux", ["ci", "lint"], 19),
+        ("make lint", "bash", "linux", ["ci", "lint"], 19),  # default: bash
     ]
     assert all(
         c.confidence == "low" and c.evidence[0].detector == "ci.github"
@@ -301,6 +301,28 @@ def test_ci_backslash_continuation(tmp_path):
     )
     (cmd,) = detect_dir(tmp_path).commands
     assert cmd.text == "pip install -r req.txt" and cmd.platform == "macos"
+
+
+def test_ci_default_shell_follows_the_runner_os(tmp_path):
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "s.yml").write_text(
+        "jobs:\n"
+        "  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make a\n"
+        "  win-bash:\n    runs-on: windows-latest\n    steps:\n"
+        "      - shell: bash\n        run: make b\n"
+        "  win-default:\n    runs-on: windows-latest\n"
+        "    defaults:\n      run:\n        shell: cmd\n"
+        "    steps:\n      - run: make c\n"
+        "  matrix:\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make d\n"
+    )
+    got = {c.text: (c.shell, c.platform) for c in detect_dir(tmp_path).commands}
+    assert got == {
+        "make a": ("bash", "macos"),
+        "make b": ("bash", "windows"),  # an explicit shell always wins
+        "make c": ("cmd", "windows"),  # so does defaults.run.shell
+        "make d": ("unknown", "any"),  # cannot tell from a matrix expression
+    }
 
 
 def test_ci_invalid_yaml_warns(tmp_path):

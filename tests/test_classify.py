@@ -128,6 +128,14 @@ CASES = [
     ("frobnicate --all", ["Contributing"], "bash", "other", None, A, []),
     ("frobnicate --all", [], "bash", "other", None, A, []),
     ("make", ["Usage"], "bash", "run", None, A, []),
+    # --- process managers: an "Install" heading must not turn a start into an install ---
+    ("pm2 start server/server.js --name app", ["Install"], "bash", "run", None, A, []),
+    ("pm2 restart app", ["Install"], "bash", "run", None, A, []),
+    ("forever start app.js", ["Installation"], "bash", "run", None, A, []),
+    ("pm2 startup", ["Install"], "bash", "setup", None, A, []),
+    ("pm2 monit", ["Install"], "bash", "other", None, A, []),
+    ("pm2 logs app", ["Setup"], "bash", "other", None, A, []),
+    ("pm2-runtime start x", ["Setup"], "bash", "setup", None, A, []),  # heading only: not pm2
     # --- variants from headings ---
     ("npm install", ["Docker"], "bash", "install", "docker", A, []),
     ("npm install", ["Install", "From source"], "bash", "install", "native", A, []),
