@@ -1,17 +1,15 @@
-# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+# Gold annotation (approved by Drew). Source: README.md at the pinned sha.
 repo: full-stack-fastapi-template
 variant: docker
 steps: []
 runtimes: []
-env_required:
-  # Not in the README. They are in the committed `.env`, which holds `changethis`
-  # placeholders. rtfmup never reads a real `.env`, so recall here is expected to be 0.
-  - SECRET_KEY
-  - FIRST_SUPERUSER_PASSWORD
-  - POSTGRES_PASSWORD
+env_required: []
 services: [postgres]
 notes: >-
   The README contains no commands. It links to development.md, backend/README.md
   and frontend/README.md, where the commands live (for example
   `docker compose up -d db mailpit`). Gold is README-only, so steps is empty and
   any command the extractor reports counts against precision.
+  Known gap (deferred): SECRET_KEY, FIRST_SUPERUSER_PASSWORD and POSTGRES_PASSWORD
+  exist only in the committed `.env` (`changethis` placeholders). rtfmup never reads
+  a real `.env` (rule 7, D9), so they are not gold.

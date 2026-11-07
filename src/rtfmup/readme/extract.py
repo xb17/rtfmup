@@ -93,14 +93,22 @@ def _fence_plan(block: Block, sec: Section) -> tuple[str, str, bool] | None:
     lines = [ln for ln in block.text.splitlines() if ln.strip()]
     kinds = [_prompt_kind(ln) for ln in lines]
     prompted = [k for k in kinds if k]
-    if lines and len(prompted) * 2 > len(lines):  # "most" lines carry a prompt
+    # Most lines carry a prompt, or the block opens with a prompted command and at
+    # least half do (`$ flask run` followed by one line of output).
+    if lines and (
+        len(prompted) * 2 > len(lines) or (kinds[0] and len(prompted) * 2 >= len(lines))
+    ):
         dominant = max(set(prompted), key=prompted.count)
         shell = {"ps": "powershell", "cmd": "cmd", "dollar": "console"}.get(
             dominant, "unknown"
         )
         return shell, "low", True
     # rST bare `::` blocks: only under install-type headings, always low confidence.
-    if block.low_confidence and any(_INSTALL_HEADING.search(t) for t in sec.path):
+    # rST bare `::` blocks and unlabeled Markdown indented blocks (D18 parity):
+    # only under install-type headings, always low confidence.
+    if (block.low_confidence or block.kind == "code_block") and any(
+        _INSTALL_HEADING.search(t) for t in sec.path
+    ):
         return "unknown", "low", False
     return None
 
@@ -347,7 +355,9 @@ def extract(root: Section, readme: str) -> Extraction:
             if plan:
                 shell, confidence, all_prompts = plan
                 detector = (
-                    "readme.literal_block" if blk.low_confidence else "readme.fence"
+                    "readme.literal_block"
+                    if blk.low_confidence or kind == "code_block"
+                    else "readme.fence"
                 )
                 start = blk.content_line_start
                 for text, i0, i1 in _logical_commands(blk, shell, all_prompts):

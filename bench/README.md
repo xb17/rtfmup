@@ -34,7 +34,9 @@ services: []
 notes: ...
 ```
 
-Gold is **README-only**. A repo whose README has no commands has `steps: []`, and any command
+Gold is what a developer sees: the **README commands** plus the env templates (`.env.example` and
+like). A real `.env` is never read (known gap: `full-stack-fastapi-template` keeps its variables
+only in a committed `.env`). A repo whose README has no commands has `steps: []`, and any command
 rtfmup reports from it counts against precision. Test and lint commands are not gold steps.
 Each `(command, category)` pair appears once.
 
@@ -62,5 +64,6 @@ milestone ends. `run.py` prints them in a separate table.
 
 ## Status
 
-The gold files are **drafts for Drew's review** (PLAN §5 stop point 6). No benchmark numbers
-have been produced or reported yet.
+Corpus and gold approved by Drew. Known gaps, deliberately not tuned for: commands in Markdown
+table cells (`fzf`) and a committed `.env` used as a template. The `datasette` held-out result
+is contaminated: the indented-block rule was added after its README was read.

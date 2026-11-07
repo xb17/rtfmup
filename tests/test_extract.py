@@ -66,6 +66,28 @@ def test_unlabeled_fence_without_majority_prompts_is_ignored(body):
     assert cmds(fence("", body)) == []
 
 
+def test_unlabeled_block_opening_with_a_prompt_and_half_prompted_is_accepted():
+    # `$ flask run` followed by one line of output: the common README pattern
+    body = "$ flask run\n * Running on http://127.0.0.1:5000"
+    (c,) = ex(fence("", body)).commands
+    assert c.text == "flask run" and c.confidence == "low"
+
+
+def test_half_prompted_block_not_opening_with_a_prompt_is_ignored():
+    assert cmds(fence("", "output first\n$ flask run")) == []
+
+
+def test_unlabeled_indented_block_under_install_heading_is_low_confidence():
+    md = "# P\n\n## Installation\n\n    pip install datasette\n"
+    (c,) = ex(md).commands
+    assert c.text == "pip install datasette" and c.confidence == "low"
+    assert c.evidence[0].detector == "readme.literal_block"
+
+
+def test_unlabeled_indented_block_elsewhere_is_ignored():
+    assert cmds("# P\n\n## License\n\n    pip install datasette\n") == []
+
+
 def test_unlabeled_majority_prompt_drops_output_lines():
     assert cmds(fence("", "$ a\n$ b\nout")) == ["a", "b"]
 

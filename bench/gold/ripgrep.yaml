@@ -1,4 +1,4 @@
-# DRAFT gold annotation: needs Drew's review. Source: README.md at the pinned sha.
+# Gold annotation (approved by Drew). Source: README.md at the pinned sha.
 repo: ripgrep
 variant: native
 steps:
@@ -32,13 +32,12 @@ steps:
   # Building from source.
   - {category: install, command: "git clone https://github.com/BurntSushi/ripgrep", variant: native, platform: any}
   - {category: setup, command: "cd ripgrep", variant: native, platform: any}
-  # The plan's rule table calls `cargo build` an install step; for a release build of
-  # the product itself a developer would call it build. Drew to decide.
-  - {category: build, command: "cargo build --release", variant: native, platform: any}
+  # PLAN section 2.5 makes `cargo build` Rust's install step (approved by Drew).
+  - {category: install, command: "cargo build --release", variant: native, platform: any}
   - {category: run, command: "./target/release/rg --version", variant: native, platform: unix}
-  - {category: build, command: "cargo build --release --features 'pcre2'", variant: native, platform: any}
+  - {category: install, command: "cargo build --release --features 'pcre2'", variant: native, platform: any}
   - {category: setup, command: "rustup target add x86_64-unknown-linux-musl", variant: native, platform: any}
-  - {category: build, command: "cargo build --release --target x86_64-unknown-linux-musl", variant: native, platform: any}
+  - {category: install, command: "cargo build --release --target x86_64-unknown-linux-musl", variant: native, platform: any}
 runtimes:
   - {name: rust, spec: "1.96.0"}  # "ripgrep compiles with Rust 1.96.0 (stable) or newer"
 env_required: []
