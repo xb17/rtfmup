@@ -3,7 +3,7 @@
 **Set up any repo from its README.**
 Read The Fine Manual, then bring it `up`.
 
-> ⚠️ **Early development, not ready for use.** This release only claims the name and ships a minimal `scan` command.
+> ⚠️ **Early development.** This release analyses a repo and reports what it found. It does not set anything up yet: `up`, `plan` and the other commands are stubs.
 
 ## What it will do
 
@@ -19,11 +19,15 @@ uvx rtfmup --version
 
 ```console
 rtfmup --version
-rtfmup scan [path]          # detect manifests in a local repo (default: .)
-rtfmup scan [path] --json   # same, as JSON
+rtfmup scan [path|url]          # analyse a repo (default: .); a URL is cloned into the cache dir
+rtfmup scan [path|url] --json   # the same analysis as JSON (schema: rtfmup schema)
+rtfmup scan [path|url] --fresh  # ignore the cached analysis
 ```
 
-`scan` currently recognises `pyproject.toml`, `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, `Dockerfile`, Compose files, and `.env.example` at the repo root.
+`scan` is read-only. It reads manifests (Python, Node, Rust, Go, Ruby, PHP, .NET, Docker and Compose,
+env templates, Makefile/Justfile, devcontainer, CI, deployment files), reads the README
+(`.md` and `.rst`), classifies the commands it finds, and reports conflicts between the two and
+questions it would have to ask. It never runs anything from the repo.
 
 ## Planned CLI
 
@@ -40,9 +44,7 @@ rtfmup plan <path>  # show the execution plan without running anything
 3. **Executor (Windows first):** invokes existing tools (`uv`, `npm`, `cargo`, …), guides `.env` setup, runs the project, and health-checks it.
 4. **Polish:** recovery from common failures and clearer diagnostics.
 
-**Platform:** Windows only for now. Linux and macOS support is planned for later versions.
-
-Later: Linux and macOS support, deployment-file awareness, a learning mode that writes the spec the repo was missing, and an opt-in local-LLM assist.
+**Platform:** Windows first.
 
 ## License
 
