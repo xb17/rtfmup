@@ -1,0 +1,113 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": "native",
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "pip install -r requirements.txt",
+      "argv": [
+        "pip",
+        "install",
+        "-r",
+        "requirements.txt"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-1"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 8,
+          "line_end": 8,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "run",
+      "title": "python app.py",
+      "argv": [
+        "python",
+        "app.py"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-2"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 9,
+          "line_end": 9,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": true
+    },
+    {
+      "id": "step-3",
+      "kind": "healthcheck",
+      "title": "Wait for http://localhost:8000",
+      "argv": null,
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 18,
+          "line_end": 18,
+          "detector": "readme.port"
+        },
+        {
+          "file": "docker-compose.yml",
+          "line_start": 11,
+          "line_end": 11,
+          "detector": "containers.compose"
+        }
+      ],
+      "long_running": false
+    }
+  ],
+  "gaps": [],
+  "health": {
+    "port": 8000,
+    "url": "http://localhost:8000",
+    "component": "root",
+    "evidence": [
+      {
+        "file": "README.md",
+        "line_start": 18,
+        "line_end": 18,
+        "detector": "readme.port"
+      },
+      {
+        "file": "docker-compose.yml",
+        "line_start": 11,
+        "line_end": 11,
+        "detector": "containers.compose"
+      }
+    ]
+  }
+}

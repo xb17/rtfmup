@@ -1,0 +1,62 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "npm ci (from package-lock.json)",
+      "argv": [
+        "npm",
+        "ci"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "package-lock.json",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "node.lockfile"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "run",
+      "title": "npm run start (from package.json)",
+      "argv": [
+        "npm",
+        "run",
+        "start"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "package.json",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "manifest.run.node_script"
+        }
+      ],
+      "long_running": true
+    }
+  ],
+  "gaps": [],
+  "health": null
+}

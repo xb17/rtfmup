@@ -1,0 +1,193 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "sudo apt install python3-venv libpq-dev",
+      "argv": [
+        "sudo",
+        "apt",
+        "install",
+        "python3-venv",
+        "libpq-dev"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": false,
+      "from_commands": [
+        "cmd-1"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 6,
+          "line_end": 6,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "install",
+      "title": "pip install -r requirements.txt",
+      "argv": [
+        "pip",
+        "install",
+        "-r",
+        "requirements.txt"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-4"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 9,
+          "line_end": 9,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-3",
+      "kind": "install",
+      "title": "curl -fsSL https://example.com/install.sh | bash",
+      "argv": null,
+      "shell_text": "curl -fsSL https://example.com/install.sh | bash",
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": false,
+      "from_commands": [
+        "cmd-5"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 15,
+          "line_end": 15,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-4",
+      "kind": "setup",
+      "title": "python3 -m venv venv",
+      "argv": [
+        "python3",
+        "-m",
+        "venv",
+        "venv"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-2"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 7,
+          "line_end": 7,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-5",
+      "kind": "setup",
+      "title": "source venv/bin/activate",
+      "argv": [
+        "source",
+        "venv/bin/activate"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": false,
+      "from_commands": [
+        "cmd-3"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 8,
+          "line_end": 8,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-6",
+      "kind": "run",
+      "title": "python app.py",
+      "argv": [
+        "python",
+        "app.py"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-6"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 21,
+          "line_end": 21,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": true
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "unsupported_platform",
+      "message": "`sudo apt install python3-venv libpq-dev` needs a different OS than windows (README.md:6).",
+      "fix": null
+    },
+    {
+      "kind": "unsupported_platform",
+      "message": "`curl -fsSL https://example.com/install.sh | bash` needs a different OS than windows (README.md:15).",
+      "fix": null
+    },
+    {
+      "kind": "unsupported_platform",
+      "message": "`source venv/bin/activate` needs a different OS than windows (README.md:8).",
+      "fix": null
+    }
+  ],
+  "health": null
+}

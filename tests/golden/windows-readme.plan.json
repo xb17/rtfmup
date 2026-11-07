@@ -1,0 +1,107 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "py -m venv .venv",
+      "argv": null,
+      "shell_text": "py -m venv .venv",
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-1"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 6,
+          "line_end": 6,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "install",
+      "title": "pip install -r requirements.txt",
+      "argv": null,
+      "shell_text": "pip install -r requirements.txt",
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-3"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 8,
+          "line_end": 9,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-3",
+      "kind": "setup",
+      "title": ".\\.venv\\Scripts\\Activate.ps1",
+      "argv": null,
+      "shell_text": ".\\.venv\\Scripts\\Activate.ps1",
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-2"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 7,
+          "line_end": 7,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-4",
+      "kind": "run",
+      "title": "python app.py",
+      "argv": null,
+      "shell_text": "python app.py",
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-6"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 22,
+          "line_end": 22,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": true
+    }
+  ],
+  "gaps": [],
+  "health": null
+}

@@ -1,0 +1,121 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "pnpm install",
+      "argv": [
+        "pnpm",
+        "install"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-1"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 8,
+          "line_end": 8,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "env",
+      "title": "Create .env from .env.example and fill in required values",
+      "argv": null,
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": ".env.example",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "env.template"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-3",
+      "kind": "run",
+      "title": "pnpm dev",
+      "argv": [
+        "pnpm",
+        "dev"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-3"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 15,
+          "line_end": 15,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": true
+    },
+    {
+      "id": "step-4",
+      "kind": "healthcheck",
+      "title": "Wait for http://localhost:3000",
+      "argv": null,
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 18,
+          "line_end": 18,
+          "detector": "readme.port"
+        }
+      ],
+      "long_running": false
+    }
+  ],
+  "gaps": [],
+  "health": {
+    "port": 3000,
+    "url": "http://localhost:3000",
+    "component": null,
+    "evidence": [
+      {
+        "file": "README.md",
+        "line_start": 18,
+        "line_end": 18,
+        "detector": "readme.port"
+      }
+    ]
+  }
+}

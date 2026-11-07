@@ -1,0 +1,101 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "dotnet restore",
+      "argv": [
+        "dotnet",
+        "restore"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-1"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 6,
+          "line_end": 6,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "run",
+      "title": "dotnet run --project Web.csproj",
+      "argv": [
+        "dotnet",
+        "run",
+        "--project",
+        "Web.csproj"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-2"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 7,
+          "line_end": 7,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": true
+    },
+    {
+      "id": "step-3",
+      "kind": "healthcheck",
+      "title": "Wait for http://localhost:5000",
+      "argv": null,
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 10,
+          "line_end": 10,
+          "detector": "readme.port"
+        }
+      ],
+      "long_running": false
+    }
+  ],
+  "gaps": [],
+  "health": {
+    "port": 5000,
+    "url": "http://localhost:5000",
+    "component": null,
+    "evidence": [
+      {
+        "file": "README.md",
+        "line_start": 10,
+        "line_end": 10,
+        "detector": "readme.port"
+      }
+    ]
+  }
+}

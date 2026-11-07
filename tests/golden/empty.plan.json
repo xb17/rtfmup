@@ -1,0 +1,16 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [],
+  "gaps": [
+    {
+      "kind": "unresolved",
+      "message": "No run command found in the README or the manifests.",
+      "fix": null
+    }
+  ],
+  "health": null
+}

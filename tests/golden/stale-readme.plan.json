@@ -1,0 +1,75 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "pnpm install --frozen-lockfile (from pnpm-lock.yaml)",
+      "argv": [
+        "pnpm",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "pnpm-lock.yaml",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "node.lockfile"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "run",
+      "title": "npm start",
+      "argv": [
+        "npm",
+        "start"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-3"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 13,
+          "line_end": 13,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": true
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "unresolved",
+      "message": "README says `npm install` (README.md:6) but this project uses pnpm; the manifests win.",
+      "fix": null
+    },
+    {
+      "kind": "unresolved",
+      "message": "README says `pip install -r requirements.txt` (README.md:7) but `requirements.txt` does not exist in the repo; skipped.",
+      "fix": null
+    }
+  ],
+  "health": null
+}

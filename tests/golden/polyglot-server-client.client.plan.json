@@ -1,0 +1,66 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "client",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "npm ci",
+      "argv": [
+        "npm",
+        "ci"
+      ],
+      "shell_text": null,
+      "cwd": "client",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-5"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 15,
+          "line_end": 15,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "run",
+      "title": "npm run dev",
+      "argv": [
+        "npm",
+        "run",
+        "dev"
+      ],
+      "shell_text": null,
+      "cwd": "client",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-6"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 16,
+          "line_end": 16,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": true
+    }
+  ],
+  "gaps": [],
+  "health": null
+}

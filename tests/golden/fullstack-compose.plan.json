@@ -1,0 +1,130 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "npm ci (from package-lock.json)",
+      "argv": [
+        "npm",
+        "ci"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "package-lock.json",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "node.lockfile"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "env",
+      "title": "Create .env from .env.example and fill in required values",
+      "argv": null,
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": ".env.example",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "env.template"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-3",
+      "kind": "run",
+      "title": "npm run start (from package.json)",
+      "argv": [
+        "npm",
+        "run",
+        "start"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "package.json",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "manifest.run.node_script"
+        }
+      ],
+      "long_running": true
+    },
+    {
+      "id": "step-4",
+      "kind": "healthcheck",
+      "title": "Wait for http://localhost:3000",
+      "argv": null,
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 18,
+          "line_end": 18,
+          "detector": "readme.port"
+        },
+        {
+          "file": "docker-compose.yml",
+          "line_start": 14,
+          "line_end": 14,
+          "detector": "containers.compose"
+        }
+      ],
+      "long_running": false
+    }
+  ],
+  "gaps": [],
+  "health": {
+    "port": 3000,
+    "url": "http://localhost:3000",
+    "component": "root",
+    "evidence": [
+      {
+        "file": "README.md",
+        "line_start": 18,
+        "line_end": 18,
+        "detector": "readme.port"
+      },
+      {
+        "file": "docker-compose.yml",
+        "line_start": 14,
+        "line_end": 14,
+        "detector": "containers.compose"
+      }
+    ]
+  }
+}
