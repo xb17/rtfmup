@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from rtfmup.detect import detect_dir
+from rtfmup.models import ManifestFinding, PackageManager, Runtime
+
 # filename -> (category, label). Order is the display order.
 MANIFESTS: dict[str, tuple[str, str]] = {
     "pyproject.toml": ("language", "Python"),
@@ -30,6 +33,10 @@ class Finding:
 class ScanResult:
     root: str
     findings: list[Finding] = field(default_factory=list)
+    runtimes: list[Runtime] = field(default_factory=list)
+    package_managers: list[PackageManager] = field(default_factory=list)
+    manifests: list[ManifestFinding] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def languages(self) -> list[str]:
@@ -44,6 +51,12 @@ class ScanResult:
             "root": self.root,
             "languages": self.languages,
             "findings": [asdict(f) for f in self.findings],
+            "runtimes": [r.model_dump(mode="json") for r in self.runtimes],
+            "package_managers": [
+                p.model_dump(mode="json") for p in self.package_managers
+            ],
+            "manifests": [m.model_dump(mode="json") for m in self.manifests],
+            "warnings": self.warnings,
         }
 
 
@@ -55,6 +68,11 @@ def scan(path: str | Path) -> ScanResult:
     for name, (category, label) in MANIFESTS.items():
         if (root / name).is_file():
             result.findings.append(Finding(file=name, category=category, label=label))
+    detection = detect_dir(root)
+    result.runtimes = detection.runtimes
+    result.package_managers = detection.package_managers
+    result.manifests = detection.manifests
+    result.warnings = detection.warnings
     return result
 
 
