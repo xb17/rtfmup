@@ -6,7 +6,7 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [
-    { name = "xb17", email = "drew@xb17.com" }
+    { name = "xb17", email = "10093951+xb17@users.noreply.github.com" }
 ]
 # 3.11+ gives us stdlib tomllib for reading pyproject.toml/Cargo.toml in later passes;
 # 3.10 reached end of life in October 2026.
