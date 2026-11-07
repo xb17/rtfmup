@@ -28,6 +28,11 @@ def detect(d: Detection) -> None:
     if data is None:
         return
 
+    scripts = data.get("scripts")
+    if isinstance(scripts, dict):
+        for name, body in scripts.items():
+            d.scripts[str(name)] = body if isinstance(body, str) else ""
+
     engines = data.get("engines")
     if isinstance(engines, dict) and isinstance(engines.get("node"), str):
         line = find_key_line(text, '"engines"', '"node"')

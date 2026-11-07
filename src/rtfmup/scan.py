@@ -6,7 +6,16 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from rtfmup.detect import detect_dir
-from rtfmup.models import ManifestFinding, PackageManager, Runtime
+from rtfmup.models import (
+    Command,
+    Deployment,
+    EnvVar,
+    ManifestFinding,
+    PackageManager,
+    Port,
+    Runtime,
+    Service,
+)
 
 # filename -> (category, label). Order is the display order.
 MANIFESTS: dict[str, tuple[str, str]] = {
@@ -36,6 +45,14 @@ class ScanResult:
     runtimes: list[Runtime] = field(default_factory=list)
     package_managers: list[PackageManager] = field(default_factory=list)
     manifests: list[ManifestFinding] = field(default_factory=list)
+    env: list[EnvVar] = field(default_factory=list)
+    services: list[Service] = field(default_factory=list)
+    ports: list[Port] = field(default_factory=list)
+    commands: list[Command] = field(default_factory=list)
+    deployments: list[Deployment] = field(default_factory=list)
+    scripts: dict[str, str] = field(default_factory=dict)
+    has_docker: bool = False
+    has_devcontainer: bool = False
     warnings: list[str] = field(default_factory=list)
 
     @property
@@ -56,6 +73,14 @@ class ScanResult:
                 p.model_dump(mode="json") for p in self.package_managers
             ],
             "manifests": [m.model_dump(mode="json") for m in self.manifests],
+            "env": [e.model_dump(mode="json") for e in self.env],
+            "services": [x.model_dump(mode="json") for x in self.services],
+            "ports": [x.model_dump(mode="json") for x in self.ports],
+            "commands": [c.model_dump(mode="json") for c in self.commands],
+            "deployments": [x.model_dump(mode="json") for x in self.deployments],
+            "scripts": self.scripts,
+            "has_docker": self.has_docker,
+            "has_devcontainer": self.has_devcontainer,
             "warnings": self.warnings,
         }
 
@@ -72,6 +97,14 @@ def scan(path: str | Path) -> ScanResult:
     result.runtimes = detection.runtimes
     result.package_managers = detection.package_managers
     result.manifests = detection.manifests
+    result.env = detection.env
+    result.services = detection.services
+    result.ports = detection.ports
+    result.commands = detection.commands
+    result.deployments = detection.deployments
+    result.scripts = detection.scripts
+    result.has_docker = detection.has_docker
+    result.has_devcontainer = detection.has_devcontainer
     result.warnings = detection.warnings
     return result
 

@@ -12,11 +12,20 @@ from pathlib import Path
 from typing import Any
 
 from rtfmup.models import (
+    Command,
+    Deployment,
+    EnvVar,
     ManifestFinding,
     PackageManager,
+    Port,
     Runtime,
+    Service,
     SourceRef,
 )
+
+# Detectors stop reading beyond these limits and add a warning (PLAN T1.5).
+MAX_FILES = 200
+MAX_BYTES = 1_000_000
 
 
 def find_key_line(text: str, *needles: str) -> int | None:
@@ -50,6 +59,15 @@ class Detection:
         self.package_managers: list[PackageManager] = []
         self.manifests: list[ManifestFinding] = []
         self.warnings: list[str] = []
+        self.env: list[EnvVar] = []
+        self.services: list[Service] = []
+        self.ports: list[Port] = []
+        self.commands: list[Command] = []
+        self.deployments: list[Deployment] = []
+        # package.json scripts unprefixed; others as "make:x", "just:x", "task:x".
+        self.scripts: dict[str, str] = {}
+        self.has_docker = False
+        self.has_devcontainer = False
 
     # --- file access -------------------------------------------------------
     def relname(self, name: str) -> str:
@@ -142,6 +160,41 @@ class Detection:
             )
         )
 
+    def command(
+        self,
+        text: str,
+        *,
+        shell: str,
+        category: str,
+        reason: str,
+        section_path: list[str],
+        file: str,
+        line: int | None,
+        detector: str,
+        platform: str = "any",
+    ) -> None:
+        """Record a low-confidence command. `id` is a placeholder until sort()."""
+        self.commands.append(
+            Command(
+                id="cmd-0",
+                text=text,
+                shell=shell,  # type: ignore[arg-type]
+                category=category,  # type: ignore[arg-type]
+                reason=reason,
+                section_path=section_path,
+                platform=platform,  # type: ignore[arg-type]
+                confidence="low",
+                evidence=[
+                    SourceRef(
+                        file=self.relname(file),
+                        line_start=line,
+                        line_end=line,
+                        detector=detector,
+                    )
+                ],
+            )
+        )
+
     def sort(self) -> None:
         """Deterministic order: evidence file, line, then name (PLAN §2.2)."""
 
@@ -152,4 +205,13 @@ class Detection:
         self.runtimes.sort(key=lambda r: key(r.evidence, r.name))
         self.package_managers.sort(key=lambda p: key(p.evidence, p.name))
         self.manifests.sort(key=lambda m: key(m.evidence, m.kind))
+        self.env.sort(key=lambda e: key(e.evidence, e.name))
+        self.services.sort(key=lambda x: key(x.evidence, x.name))
+        self.ports.sort(key=lambda x: key(x.evidence, str(x.port)))
+        self.deployments.sort(key=lambda x: key(x.evidence, x.kind))
+        self.commands.sort(key=lambda c: key(c.evidence, c.text))
+        # Ids are stable for a given tree because the order above is deterministic.
+        # The component aggregator (T1.6) renumbers across directories.
+        for n, c in enumerate(self.commands, start=1):
+            c.id = f"cmd-{n}"
         self.warnings.sort()
