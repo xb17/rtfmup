@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 
 from rtfmup import __version__, ui
+from rtfmup.models import Analysis
 from rtfmup.scan import format_summary, scan
 
 EXIT_USAGE = 2
@@ -77,7 +78,10 @@ def doctor() -> None:
 @app.command()
 def schema() -> None:
     """Print the analysis JSON Schema."""
-    _stub("schema")
+    # Bytes + LF so output is identical on every OS (the committed file is LF).
+    text = json.dumps(Analysis.model_json_schema(), indent=2) + "\n"
+    sys.stdout.buffer.write(text.encode("utf-8"))
+    sys.stdout.buffer.flush()
 
 
 @app.command()

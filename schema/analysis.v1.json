@@ -1,0 +1,847 @@
+{
+  "$defs": {
+    "Ambiguity": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Options",
+          "type": "array"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "question",
+        "options",
+        "evidence"
+      ],
+      "title": "Ambiguity",
+      "type": "object"
+    },
+    "Command": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "shell": {
+          "enum": [
+            "bash",
+            "sh",
+            "zsh",
+            "powershell",
+            "cmd",
+            "console",
+            "unknown"
+          ],
+          "title": "Shell",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "install",
+            "setup",
+            "build",
+            "run",
+            "test",
+            "lint",
+            "other"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "section_path": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Section Path",
+          "type": "array"
+        },
+        "platform": {
+          "default": "any",
+          "enum": [
+            "any",
+            "windows",
+            "unix",
+            "macos",
+            "linux"
+          ],
+          "title": "Platform",
+          "type": "string"
+        },
+        "variant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant"
+        },
+        "needs_shell": {
+          "default": false,
+          "title": "Needs Shell",
+          "type": "boolean"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "shell",
+        "category",
+        "reason",
+        "section_path",
+        "confidence",
+        "evidence"
+      ],
+      "title": "Command",
+      "type": "object"
+    },
+    "Component": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "runtimes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Runtimes",
+          "type": "array"
+        },
+        "package_managers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Package Managers",
+          "type": "array"
+        },
+        "scripts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Scripts",
+          "type": "object"
+        },
+        "runnable": {
+          "title": "Runnable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "runtimes",
+        "package_managers",
+        "runnable"
+      ],
+      "title": "Component",
+      "type": "object"
+    },
+    "Conflict": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "message",
+        "evidence"
+      ],
+      "title": "Conflict",
+      "type": "object"
+    },
+    "Deployment": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "procfile",
+            "fly",
+            "vercel",
+            "netlify",
+            "render",
+            "railway",
+            "heroku_app_json",
+            "cloudflare_wrangler",
+            "serverless",
+            "k8s",
+            "helm",
+            "kustomize"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "file",
+        "evidence"
+      ],
+      "title": "Deployment",
+      "type": "object"
+    },
+    "EnvVar": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "required": {
+          "enum": [
+            "required",
+            "optional",
+            "unknown"
+          ],
+          "title": "Required",
+          "type": "string"
+        },
+        "secret_like": {
+          "title": "Secret Like",
+          "type": "boolean"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "required",
+        "secret_like",
+        "evidence"
+      ],
+      "title": "EnvVar",
+      "type": "object"
+    },
+    "ExternalAccount": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "related_env": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Env",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "evidence"
+      ],
+      "title": "ExternalAccount",
+      "type": "object"
+    },
+    "ManifestFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "component": {
+          "title": "Component",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "file",
+        "kind",
+        "component",
+        "evidence"
+      ],
+      "title": "ManifestFinding",
+      "type": "object"
+    },
+    "PackageManager": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "lockfile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lockfile"
+        },
+        "component": {
+          "title": "Component",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "component",
+        "evidence"
+      ],
+      "title": "PackageManager",
+      "type": "object"
+    },
+    "Port": {
+      "additionalProperties": false,
+      "properties": {
+        "port": {
+          "title": "Port",
+          "type": "integer"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "component": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "port",
+        "evidence"
+      ],
+      "title": "Port",
+      "type": "object"
+    },
+    "Runtime": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "python",
+            "node",
+            "rust",
+            "go",
+            "ruby",
+            "php",
+            "dotnet",
+            "java",
+            "bun",
+            "deno"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "version_spec": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Spec"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "confidence",
+        "evidence"
+      ],
+      "title": "Runtime",
+      "type": "object"
+    },
+    "Service": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "compose",
+            "readme",
+            "env"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image"
+        },
+        "ports": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Ports",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "evidence"
+      ],
+      "title": "Service",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "line_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Start"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "detector": {
+          "title": "Detector",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "detector"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "rtfmup_version": {
+      "title": "Rtfmup Version",
+      "type": "string"
+    },
+    "root": {
+      "title": "Root",
+      "type": "string"
+    },
+    "git_head": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Git Head"
+    },
+    "git_dirty": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Git Dirty"
+    },
+    "readme": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Readme"
+    },
+    "readme_format": {
+      "anyOf": [
+        {
+          "enum": [
+            "markdown",
+            "rst"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Readme Format"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/Component"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "runtimes": {
+      "items": {
+        "$ref": "#/$defs/Runtime"
+      },
+      "title": "Runtimes",
+      "type": "array"
+    },
+    "package_managers": {
+      "items": {
+        "$ref": "#/$defs/PackageManager"
+      },
+      "title": "Package Managers",
+      "type": "array"
+    },
+    "manifests": {
+      "items": {
+        "$ref": "#/$defs/ManifestFinding"
+      },
+      "title": "Manifests",
+      "type": "array"
+    },
+    "commands": {
+      "items": {
+        "$ref": "#/$defs/Command"
+      },
+      "title": "Commands",
+      "type": "array"
+    },
+    "env": {
+      "items": {
+        "$ref": "#/$defs/EnvVar"
+      },
+      "title": "Env",
+      "type": "array"
+    },
+    "services": {
+      "items": {
+        "$ref": "#/$defs/Service"
+      },
+      "title": "Services",
+      "type": "array"
+    },
+    "external_accounts": {
+      "items": {
+        "$ref": "#/$defs/ExternalAccount"
+      },
+      "title": "External Accounts",
+      "type": "array"
+    },
+    "ports": {
+      "items": {
+        "$ref": "#/$defs/Port"
+      },
+      "title": "Ports",
+      "type": "array"
+    },
+    "deployments": {
+      "items": {
+        "$ref": "#/$defs/Deployment"
+      },
+      "title": "Deployments",
+      "type": "array"
+    },
+    "has_devcontainer": {
+      "title": "Has Devcontainer",
+      "type": "boolean"
+    },
+    "has_docker": {
+      "title": "Has Docker",
+      "type": "boolean"
+    },
+    "conflicts": {
+      "items": {
+        "$ref": "#/$defs/Conflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "ambiguities": {
+      "items": {
+        "$ref": "#/$defs/Ambiguity"
+      },
+      "title": "Ambiguities",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "rtfmup_version",
+    "root",
+    "git_head",
+    "git_dirty",
+    "readme",
+    "readme_format",
+    "components",
+    "runtimes",
+    "package_managers",
+    "manifests",
+    "commands",
+    "env",
+    "services",
+    "external_accounts",
+    "ports",
+    "deployments",
+    "has_devcontainer",
+    "has_docker",
+    "conflicts",
+    "ambiguities",
+    "warnings"
+  ],
+  "title": "Analysis",
+  "type": "object"
+}
