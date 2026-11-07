@@ -1,7 +1,6 @@
 import subprocess
 
 import pytest
-
 from conftest import FIXTURES
 
 EXPECTED = {
@@ -31,7 +30,11 @@ def test_fixture_copy_without_git(fixture_copy):
 def test_fixture_copy_with_git(fixture_copy):
     dest = fixture_copy("py-uv", git=True)
     head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=dest, capture_output=True, text=True
+        ["git", "rev-parse", "HEAD"],
+        check=True,
+        cwd=dest,
+        capture_output=True,
+        text=True,
     )
     assert head.returncode == 0 and len(head.stdout.strip()) == 40
 
