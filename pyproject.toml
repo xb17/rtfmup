@@ -11,7 +11,16 @@ authors = [
 # 3.11+ gives us stdlib tomllib for reading pyproject.toml/Cargo.toml in later passes;
 # 3.10 reached end of life in October 2026.
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "docutils>=0.23",
+    "markdown-it-py>=4.2.0",
+    "packaging>=26.3",
+    "platformdirs>=4.14.5",
+    "pydantic>=2.14.3",
+    "pyyaml>=6.0.3",
+    "rich>=15.0.0",
+    "typer>=0.28.0",
+]
 keywords = ["setup", "readme", "cli", "developer-tools", "bootstrap"]
 classifiers = [
     "Development Status :: 1 - Planning",
@@ -37,7 +46,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "pytest",
+    "pytest>=9.2.0",
     "ruff>=0.17.4",
 ]
 
