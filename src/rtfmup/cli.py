@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import shutil
 import sys
@@ -11,9 +12,12 @@ import typer
 from rich.console import Console
 
 from rtfmup import __version__, ui
-from rtfmup.analyze import analyze
+from rtfmup.analyze import analyze, remote_urls
 from rtfmup.host.probe import probe_host
-from rtfmup.models import Analysis
+from rtfmup.models import Ambiguity, Analysis
+from rtfmup.plan.build import BadChoice, Choices, Unanswered, build_plan
+from rtfmup.plan.render import render_plan
+from rtfmup.plan.store import plan_json, write_plan
 from rtfmup.source import SourceError, resolve
 
 EXIT_USAGE = 2
@@ -66,10 +70,99 @@ def up(target: TargetArg) -> None:
     _stub("up")
 
 
+_FLAG_FOR = {
+    "amb-variant": "--variant",
+    "amb-component": "--component",
+    "amb-run": "--run",
+}
+
+
+def _is_interactive() -> bool:
+    return sys.stdin.isatty() and sys.stderr.isatty()
+
+
+def _ask(questions: list[Ambiguity], choices: Choices) -> Choices:
+    """Ask each open question on the terminal and fold the answers into `choices`."""
+    field = {"amb-variant": "variant", "amb-component": "component", "amb-run": "run"}
+    answers: dict[str, str] = {}
+    for q in questions:
+        typer.echo(f"\n{q.question}", err=True)
+        for i, opt in enumerate(q.options, 1):
+            typer.echo(f"  {i}) {opt}", err=True)
+        while True:
+            raw = typer.prompt("Choice", err=True)
+            if raw.strip().isdigit() and 1 <= int(raw) <= len(q.options):
+                answers[field[q.id]] = q.options[int(raw) - 1]
+                break
+            if raw in q.options:
+                answers[field[q.id]] = raw
+                break
+            typer.echo(f"Enter 1-{len(q.options)}.", err=True)
+    return dataclasses.replace(choices, **answers)
+
+
 @app.command()
-def plan(target: TargetArg) -> None:
-    """Show the plan for TARGET without executing anything."""
-    _stub("plan")
+def plan(
+    target: Annotated[str, typer.Argument(help="Local directory or Git URL.")] = ".",
+    json_out: Annotated[
+        bool, typer.Option("--json", help="Emit the plan as JSON.")
+    ] = False,
+    variant: Annotated[
+        str | None, typer.Option(help="Setup path, e.g. native or docker.")
+    ] = None,
+    component: Annotated[
+        str | None, typer.Option(help="Component id in a multi-component repo.")
+    ] = None,
+    run: Annotated[
+        str | None,
+        typer.Option(help="Which run command to use when README and manifests differ."),
+    ] = None,
+    fresh: Annotated[
+        bool, typer.Option("--fresh", help="Ignore the cached analysis.")
+    ] = False,
+) -> None:
+    """Show the plan for TARGET. Nothing is executed."""
+    try:
+        ui.stage(1, 3, "Resolving target")
+        source = resolve(target)
+        ui.stage(2, 3, "Analyzing")
+        analysis = analyze(source.root, fresh=fresh)
+        ui.stage(3, 3, "Probing this host (read-only)")
+        host = probe_host()
+    except (SourceError, NotADirectoryError) as exc:
+        ui.error(str(exc))
+        raise typer.Exit(EXIT_USAGE) from exc
+
+    own = [*remote_urls(source.root), *([source.url] if source.url else [])]
+    choices = Choices(variant=variant, component=component, run=run)
+    while True:
+        try:
+            result = build_plan(analysis, host, choices, own_urls=own)
+            break
+        except BadChoice as exc:
+            ui.error(str(exc))
+            raise typer.Exit(EXIT_USAGE) from exc
+        except Unanswered as exc:
+            if not _is_interactive():
+                for q in exc.questions:
+                    flag = _FLAG_FOR.get(q.id, "")
+                    ui.error(
+                        f"{q.question} Pass {flag} with one of: {', '.join(q.options)}"
+                    )
+                raise typer.Exit(EXIT_USAGE) from exc
+            choices = _ask(exc.questions, choices)
+
+    saved = write_plan(source.root, result)
+    if json_out:
+        sys.stdout.buffer.write(plan_json(result).encode("utf-8"))
+        sys.stdout.buffer.flush()
+    else:
+        render_plan(result, Console(width=max(100, shutil.get_terminal_size().columns)))
+    ui.done(
+        f"Plan saved to {saved}. Nothing was executed."
+        if saved
+        else "Plan not saved (directory not writable). Nothing was executed."
+    )
 
 
 @app.command()

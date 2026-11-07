@@ -22,6 +22,15 @@ def error(message: str) -> None:
     typer.echo(f"rtfmup: error: {message}", err=True)
 
 
+def stage(index: int, total: int, message: str) -> None:
+    """Progress header on stderr, so `--json` output on stdout stays clean."""
+    typer.echo(f"[{index}/{total}] {message}", err=True)
+
+
+def done(message: str) -> None:
+    typer.echo(message, err=True)
+
+
 def not_implemented(command: str) -> None:
     typer.echo(f"rtfmup: '{command}' is not implemented yet", err=True)
 

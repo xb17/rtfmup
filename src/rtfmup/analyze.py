@@ -55,6 +55,17 @@ def _git(root: Path, *args: str) -> str | None:
     return proc.stdout if proc.returncode == 0 else None
 
 
+def remote_urls(root: Path) -> list[str]:
+    """URLs of the repo's configured remotes (read-only), sorted and de-duplicated."""
+    out = _git(root, "config", "--get-regexp", r"^remote\..*\.url$")
+    urls = {
+        parts[1].strip()
+        for line in (out or "").splitlines()
+        if len(parts := line.split(None, 1)) == 2
+    }
+    return sorted(urls)
+
+
 def git_state(root: Path) -> tuple[str | None, bool | None]:
     """(HEAD sha, dirty). Both None when `root` is not a usable git work tree."""
     top = _git(root, "rev-parse", "--show-toplevel")
@@ -183,7 +194,7 @@ def cache_path(root: Path) -> Path:
     return root / CACHE_DIR / CACHE_FILE
 
 
-def _exclude_cache_dir(root: Path) -> None:
+def exclude_state_dir(root: Path) -> None:
     """Add `.rtfmup/` to .git/info/exclude (D9). Never touches tracked files."""
     info = root / ".git" / "info"
     if not (root / ".git").is_dir():
@@ -225,7 +236,7 @@ def write_cache(root: Path, analysis: Analysis) -> None:
     target = cache_path(root)
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        _exclude_cache_dir(root)
+        exclude_state_dir(root)
         tmp = target.with_suffix(".json.tmp")
         tmp.write_text(
             analysis.model_dump_json(indent=2) + "\n", encoding="utf-8", newline="\n"

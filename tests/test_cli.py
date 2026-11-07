@@ -35,7 +35,6 @@ def test_scan_missing_path_exits_2(tmp_path):
     "args",
     [
         ["up", "x"],
-        ["plan", "x"],
         ["config"],
         ["export", "devcontainer", "x"],
         ["recipe", "show", "x"],
