@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from rtfmup.detect import detect_dir
+from rtfmup.detect.components import discover
 from rtfmup.models import (
+    Ambiguity,
     Command,
+    Component,
     Deployment,
     EnvVar,
     ManifestFinding,
@@ -50,7 +52,8 @@ class ScanResult:
     ports: list[Port] = field(default_factory=list)
     commands: list[Command] = field(default_factory=list)
     deployments: list[Deployment] = field(default_factory=list)
-    scripts: dict[str, str] = field(default_factory=dict)
+    components: list[Component] = field(default_factory=list)
+    ambiguities: list[Ambiguity] = field(default_factory=list)
     has_docker: bool = False
     has_devcontainer: bool = False
     warnings: list[str] = field(default_factory=list)
@@ -78,7 +81,8 @@ class ScanResult:
             "ports": [x.model_dump(mode="json") for x in self.ports],
             "commands": [c.model_dump(mode="json") for c in self.commands],
             "deployments": [x.model_dump(mode="json") for x in self.deployments],
-            "scripts": self.scripts,
+            "components": [c.model_dump(mode="json") for c in self.components],
+            "ambiguities": [a.model_dump(mode="json") for a in self.ambiguities],
             "has_docker": self.has_docker,
             "has_devcontainer": self.has_devcontainer,
             "warnings": self.warnings,
@@ -93,7 +97,10 @@ def scan(path: str | Path) -> ScanResult:
     for name, (category, label) in MANIFESTS.items():
         if (root / name).is_file():
             result.findings.append(Finding(file=name, category=category, label=label))
-    detection = detect_dir(root)
+    discovery = discover(root)
+    detection = discovery.merged(root)
+    result.components = discovery.components
+    result.ambiguities = discovery.ambiguities
     result.runtimes = detection.runtimes
     result.package_managers = detection.package_managers
     result.manifests = detection.manifests
@@ -102,7 +109,6 @@ def scan(path: str | Path) -> ScanResult:
     result.ports = detection.ports
     result.commands = detection.commands
     result.deployments = detection.deployments
-    result.scripts = detection.scripts
     result.has_docker = detection.has_docker
     result.has_devcontainer = detection.has_devcontainer
     result.warnings = detection.warnings
