@@ -40,3 +40,19 @@ def linux_full() -> HostProfile:
     h = windows_full()
     tools = {k: v for k, v in h.tools.items() if k not in ("winget",)}
     return HostProfile(os="linux", arch="x86_64", tools=tools, docker_daemon=True)
+
+
+def without(host: HostProfile, *names: str) -> HostProfile:
+    """The same host with some tools uninstalled."""
+    tools = dict(host.tools)
+    for n in names:
+        tools[n] = ToolInfo(found=False)
+    return host.model_copy(update={"tools": tools})
+
+
+def with_tool(host: HostProfile, name: str, version: str, *more: str) -> HostProfile:
+    return host.model_copy(update={"tools": {**host.tools, name: _t(version, *more)}})
+
+
+def docker_down(host: HostProfile) -> HostProfile:
+    return host.model_copy(update={"docker_daemon": False})

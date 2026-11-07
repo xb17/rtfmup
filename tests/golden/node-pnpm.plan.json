@@ -106,7 +106,18 @@
       "long_running": false
     }
   ],
-  "gaps": [],
+  "gaps": [
+    {
+      "kind": "runtime_version",
+      "message": "Node.js 20 is required (.nvmrc:1) but only 26.13.0 is installed.",
+      "fix": "Install Node.js from https://nodejs.org/en/download"
+    },
+    {
+      "kind": "missing_env",
+      "message": "Needs values for: API_KEY, DATABASE_URL. Secret-like values are asked for at run time and never stored.",
+      "fix": "Fill them in when rtfmup creates .env."
+    }
+  ],
   "health": {
     "port": 3000,
     "url": "http://localhost:3000",

@@ -21,8 +21,10 @@ Triple = tuple[int, int, int]
 _VERSION = re.compile(r"^(?:go|v)?(\d+)(?:\.(\d+))?(?:\.(\d+))?", re.IGNORECASE)
 _TOKEN = re.compile(r"(\^|~|>=|<=|>|<|=)?\s*(v?[0-9xX*][0-9A-Za-z.*+-]*)")
 
-# go.mod's `go 1.22` is a minimum, not a pin.
-_BARE_IS_MINIMUM = {"go"}
+# go.mod's `go 1.22`, a .NET target framework or SDK pin, and a rust-toolchain version
+# all mean "this or newer will do" for the purpose of building, not an exact pin.
+_BARE_IS_MINIMUM = {"go", "dotnet", "rust"}
+_TFM = re.compile(r"^net(\d+(?:\.\d+)?)$", re.IGNORECASE)
 
 
 def parse_version(text: str) -> Triple | None:
@@ -104,9 +106,10 @@ def _alternative(text: str, *, bare_is_minimum: bool) -> list[Range] | None:
         nums = _partial(m.group(2))
         if nums is None:
             return None
-        ranges.append(
-            _comparator(m.group(1) or "", nums, bare_is_minimum=bare_is_minimum)
-        )
+        op = m.group(1) or ""
+        if not op and m.group(2).endswith("+"):
+            op = ">="  # "Node 20+" as READMEs write it
+        ranges.append(_comparator(op, nums, bare_is_minimum=bare_is_minimum))
         pos = m.end()
         while pos < len(text) and text[pos].isspace():
             pos += 1
@@ -117,8 +120,19 @@ def _in_all(v: Triple, ranges: list[Range]) -> bool:
     return all((lo is None or v >= lo) and (hi is None or v < hi) for lo, hi in ranges)
 
 
+def _target_frameworks(spec: str) -> str | None:
+    """`net8.0;net9.0` -> `8.0` (the lowest modern TFM). None if there is none."""
+    found = [m.group(1) for part in spec.split(";") if (m := _TFM.match(part.strip()))]
+    return min(found, key=lambda v: parse_version(v) or (0, 0, 0)) if found else None
+
+
 def _generic(runtime: str, v: Triple, spec: str) -> bool | None:
     spec = re.sub(r"^go(?=\d)", "", spec.strip())
+    if runtime == "dotnet" and spec.lower().startswith("net"):
+        tfm = _target_frameworks(spec)
+        if tfm is None:
+            return None  # netstandard, net48, ...
+        spec = tfm
     alts = [
         _alternative(a, bare_is_minimum=runtime in _BARE_IS_MINIMUM)
         for a in spec.split("||")

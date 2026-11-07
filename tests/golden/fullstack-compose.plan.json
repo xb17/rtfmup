@@ -109,7 +109,28 @@
       "long_running": false
     }
   ],
-  "gaps": [],
+  "gaps": [
+    {
+      "kind": "missing_env",
+      "message": "Needs values for: SECRET_KEY, STRIPE_API_KEY. Secret-like values are asked for at run time and never stored.",
+      "fix": "Fill them in when rtfmup creates .env."
+    },
+    {
+      "kind": "external_account",
+      "message": "Stripe dashboard: an account or API key is needed.",
+      "fix": "https://dashboard.stripe.com/apikeys"
+    },
+    {
+      "kind": "service",
+      "message": "postgres on port 5432 is expected; the compose file defines it but the native path does not start it.",
+      "fix": "docker compose up -d postgres, or install postgres yourself."
+    },
+    {
+      "kind": "service",
+      "message": "redis on port 6379 is expected; the compose file defines it but the native path does not start it.",
+      "fix": "docker compose up -d redis, or install redis yourself."
+    }
+  ],
   "health": {
     "port": 3000,
     "url": "http://localhost:3000",

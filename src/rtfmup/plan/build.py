@@ -24,6 +24,7 @@ from pathlib import Path
 
 from rtfmup.host.probe import HostProfile
 from rtfmup.models import Ambiguity, Analysis, Command, Component, SourceRef
+from rtfmup.plan.gaps import compute_gaps, owner_of
 from rtfmup.plan.model import Gap, Plan, Step, StepKind
 from rtfmup.plan.risk import rate
 from rtfmup.plan.translate import split_argv, to_windows
@@ -292,15 +293,6 @@ def _resolve_cd(root: Path, cwd: str, target: str, own_names: set[str]) -> str |
     return None
 
 
-def _owner(components: list[Component], cwd: str) -> Component | None:
-    best: Component | None = None
-    for c in components:
-        inside = c.path == "." or cwd == c.path or cwd.startswith(c.path + "/")
-        if inside and (best is None or len(c.path) > len(best.path)):
-            best = c
-    return best
-
-
 def _walk(
     a: Analysis,
     comp: Component,
@@ -375,7 +367,7 @@ def _walk(
                     st["env"][k] = v
             continue
 
-        owner = _owner(a.components, cwd)
+        owner = owner_of(a.components, cwd)
         if owner is not None and owner.id != comp.id and cwd != ".":
             continue  # belongs to another component
         step_cwd = cwd
@@ -646,7 +638,7 @@ def build_plan(
             m
             for m in a.manifests
             if m.kind == "env_template"
-            and _owner(a.components, posixpath.dirname(m.file) or ".") in (comp, None)
+            and owner_of(a.components, posixpath.dirname(m.file) or ".") in (comp, None)
         ),
         None,
     )
@@ -699,14 +691,7 @@ def build_plan(
                 )
             )
 
-    for s in steps:
-        if not s.platform_ok:
-            gaps.append(
-                Gap(
-                    kind="unsupported_platform",
-                    message=f"`{s.title}` needs a different OS than {host_os} ({_ev(s)}).",
-                )
-            )
+    all_gaps = compute_gaps(a, comp, variant, steps, host, carried=gaps)
 
     return Plan(
         analysis_ref=analysis_ref(a),
@@ -715,7 +700,7 @@ def build_plan(
         variant=variant,
         component=comp.id,
         steps=steps,
-        gaps=gaps,
+        gaps=all_gaps,
         health=health,
     )
 
@@ -775,13 +760,6 @@ def _health_port(a: Analysis, comp: Component):
     loose = [p for p in a.ports if p.component is None and p.port not in service_ports]
     pool = own or loose
     return pool[0] if pool else None
-
-
-def _ev(s: Step) -> str:
-    if not s.evidence:
-        return "manifest"
-    e = s.evidence[0]
-    return f"{e.file}:{e.line_start}" if e.line_start else e.file
 
 
 def _choose_run(

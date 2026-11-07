@@ -69,6 +69,9 @@ NODE_CASES = [
     ("18.1.0", "^16 || ^18", True),
     ("22.0.0", ">=18 || <=12", True),
     # unparseable => can't verify
+    ("26.1.0", "20+", True),  # README style
+    ("19.9.0", "20+", False),
+    ("26.1.0", "20.5+", True),
     ("20.0.0", "lts/*", None),
     ("20.0.0", "node", None),
     ("20.0.0", "lts/iron", None),
@@ -116,3 +119,23 @@ def test_go_bare_version_is_a_minimum(version, spec, expected):
 
 def test_unparseable_installed_version_cannot_verify():
     assert satisfies("node", "nightly", ">=18") is None
+
+
+@pytest.mark.parametrize(
+    ("runtime", "version", "spec", "expected"),
+    [
+        ("dotnet", "10.0.114", "net8.0", True),  # a TFM is a minimum
+        ("dotnet", "7.0.400", "net8.0", False),
+        ("dotnet", "9.0.320", "net8.0;net9.0", True),
+        ("dotnet", "8.0.100", "net8.0-windows", None),  # suffix: cannot verify
+        ("dotnet", "8.0.100", "netstandard2.0", None),
+        ("dotnet", "9.0.100", "8.0.100", True),  # SDK pin: minimum
+        ("dotnet", "7.0.100", "8", False),
+        ("rust", "1.99.1", "1.75", True),
+        ("rust", "1.70.0", "1.75", False),
+        ("rust", "1.99.1", "stable", None),  # a channel is not a version
+        ("rust", "1.99.1", "nightly-2024-01-01", None),
+    ],
+)
+def test_dotnet_and_rust_specs(runtime, version, spec, expected):
+    assert satisfies(runtime, version, spec) is expected

@@ -92,7 +92,13 @@
       "long_running": false
     }
   ],
-  "gaps": [],
+  "gaps": [
+    {
+      "kind": "service",
+      "message": "postgres on port 5432 is expected; the compose file defines it but the native path does not start it.",
+      "fix": "docker compose up -d postgres, or install postgres yourself."
+    }
+  ],
   "health": {
     "port": 8000,
     "url": "http://localhost:8000",
