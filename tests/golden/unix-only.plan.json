@@ -19,8 +19,11 @@
       "shell_text": null,
       "cwd": ".",
       "env": {},
-      "risk": "low",
-      "risk_reasons": [],
+      "risk": "high",
+      "risk_reasons": [
+        "uses sudo",
+        "system package manager (needs elevation)"
+      ],
       "platform_ok": false,
       "from_commands": [
         "cmd-1"
@@ -48,8 +51,10 @@
       "shell_text": null,
       "cwd": ".",
       "env": {},
-      "risk": "low",
-      "risk_reasons": [],
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads Python packages"
+      ],
       "platform_ok": true,
       "from_commands": [
         "cmd-4"
@@ -72,8 +77,12 @@
       "shell_text": "curl -fsSL https://example.com/install.sh | bash",
       "cwd": ".",
       "env": {},
-      "risk": "low",
-      "risk_reasons": [],
+      "risk": "high",
+      "risk_reasons": [
+        "pipes a download into a shell",
+        "downloads from the network",
+        "needs a shell (pipes, chaining or redirects)"
+      ],
       "platform_ok": false,
       "from_commands": [
         "cmd-5"

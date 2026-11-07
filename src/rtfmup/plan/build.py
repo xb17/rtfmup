@@ -25,6 +25,7 @@ from pathlib import Path
 from rtfmup.host.probe import HostProfile
 from rtfmup.models import Ambiguity, Analysis, Command, Component, SourceRef
 from rtfmup.plan.model import Gap, Plan, Step, StepKind
+from rtfmup.plan.risk import rate
 from rtfmup.plan.translate import split_argv, to_windows
 from rtfmup.resolve import manifest_run_candidates
 
@@ -527,6 +528,7 @@ def _command_step(
     evidence: list[SourceRef],
     long_running: bool = False,
     shell: str = "bash",
+    flags: Sequence[str] = (),
 ) -> Step:
     argv: list[str] | None = None
     shell_text: str | None = None
@@ -540,6 +542,7 @@ def _command_step(
         argv = split_argv(text)
         if argv is None:
             shell_text = text
+    risk, reasons = rate(text, flags=flags, needs_shell=needs_shell)
     return Step(
         id=ids.next(),
         kind=kind,
@@ -548,6 +551,8 @@ def _command_step(
         shell_text=shell_text,
         cwd=cwd,
         env=env,
+        risk=risk,
+        risk_reasons=reasons,
         platform_ok=ok,
         from_commands=from_commands,
         evidence=evidence,
@@ -605,6 +610,7 @@ def build_plan(
             from_commands=[c.cmd.id],
             evidence=c.cmd.evidence,
             shell=c.cmd.shell,
+            flags=c.cmd.flags,
             **extra,
         )
 
@@ -809,6 +815,7 @@ def _choose_run(
             from_commands=[c.cmd.id],
             evidence=c.cmd.evidence,
             shell=c.cmd.shell,
+            flags=c.cmd.flags,
             **common,
         )
 

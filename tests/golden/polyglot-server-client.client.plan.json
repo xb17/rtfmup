@@ -16,8 +16,10 @@
       "shell_text": null,
       "cwd": "client",
       "env": {},
-      "risk": "low",
-      "risk_reasons": [],
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads npm packages"
+      ],
       "platform_ok": true,
       "from_commands": [
         "cmd-5"

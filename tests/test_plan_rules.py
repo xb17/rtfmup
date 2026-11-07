@@ -283,3 +283,35 @@ def test_repo_key(url, key):
 )
 def test_parse_clone(text, expected):
     assert parse_clone(text) == expected
+
+
+def test_steps_carry_risk_from_the_readme_text_not_the_translation(tmp_path):
+    root = _repo(
+        tmp_path,
+        "w",
+        {
+            "package.json": PKG,
+            "README.md": _readme("cp .env.example ~/.app.env\nnpm start"),
+        },
+    )
+    plan = _build(root)
+    cp = next(s for s in plan.steps if s.shell_text and "Copy-Item" in s.shell_text)
+    assert cp.risk == "high" and "outside the repo" in " ".join(cp.risk_reasons)
+
+
+def test_unix_only_fixture_risk(tmp_path):
+    plan = _plan(tmp_path, "unix-only", Choices())
+    by_text = {" ".join(s.argv or [s.shell_text or ""]): s for s in plan.steps}
+    assert by_text["sudo apt install python3-venv libpq-dev"].risk == "high"
+    pipe = next(s for s in plan.steps if "install.sh" in (s.shell_text or ""))
+    assert pipe.risk == "high" and any("pipes" in r for r in pipe.risk_reasons)
+    assert by_text["python app.py"].risk == "low"
+
+
+def test_manifest_defaults_are_medium_installs(tmp_path):
+    plan = _plan(tmp_path, "node-pnpm", Choices())
+    assert [s.risk for s in plan.steps if s.kind == "install"] == ["medium"]
+    assert [s.risk for s in plan.steps if s.kind in ("env", "healthcheck")] == [
+        "low",
+        "low",
+    ]
