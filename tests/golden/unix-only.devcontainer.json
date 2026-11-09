@@ -1,0 +1,17 @@
+{
+  "name": "unix-only (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {}
+  },
+  "postCreateCommand": "sudo apt install python3-venv libpq-dev && pip install -r requirements.txt && curl -fsSL https://example.com/install.sh | bash && python3 -m venv venv && source venv/bin/activate",
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Review before building: `sudo apt install python3-venv libpq-dev` runs at container creation (uses sudo; system package manager (needs elevation)).",
+        "Review before building: `curl -fsSL https://example.com/install.sh | bash` runs at container creation (pipes a download into a shell; downloads from the network; needs a shell (pipes, chaining or redirects)).",
+        "Start the app with: python app.py"
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "rust-cli (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "1.75"
+    }
+  },
+  "postCreateCommand": "cargo build --release",
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Start the app with: cargo run"
+      ]
+    }
+  }
+}

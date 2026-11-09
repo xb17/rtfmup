@@ -1,0 +1,20 @@
+{
+  "name": "dotnet-web (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/dotnet:2": {
+      "version": "8"
+    }
+  },
+  "postCreateCommand": "dotnet restore",
+  "forwardPorts": [
+    5000
+  ],
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Start the app with: dotnet run --project Web.csproj"
+      ]
+    }
+  }
+}

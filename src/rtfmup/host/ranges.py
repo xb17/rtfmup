@@ -155,3 +155,30 @@ def satisfies(runtime: str, version: str, spec: str) -> bool | None:
         except (InvalidSpecifier, InvalidVersion):
             pass  # e.g. a bare `3.12` from .python-version: use the generic path
     return _generic(runtime, v, spec)
+
+
+_BOUND = re.compile(
+    r"(?P<op>\^|~=|~|>=|<=|==|!=|>|<|=)?\s*v?(?P<ver>\d+(?:\.(?:\d+|[xX*]))*)\+?"
+)
+
+
+def minimum_version(runtime: str, spec: str) -> str | None:
+    """The lowest version a spec allows, as written (`>=3.11,<3.13` -> `3.11`).
+
+    Used where something needs a concrete version to install (a devcontainer Feature).
+    None when the spec names no version (`lts/*`, `stable`, `nightly-2024-01-01`).
+    """
+    spec = spec.strip()
+    if runtime == "dotnet" and spec.lower().startswith("net"):
+        spec = _target_frameworks(spec) or ""
+    if not spec or re.search(r"[A-Za-z]{3,}", spec):
+        return None
+    best: tuple[Triple, str] | None = None
+    for m in _BOUND.finditer(spec):
+        if m.group("op") in ("<", "<=", "!="):
+            continue
+        text = re.sub(r"\.[xX*].*$", "", m.group("ver"))
+        triple = parse_version(text)
+        if triple is not None and (best is None or triple < best[0]):
+            best = (triple, text)
+    return best[1] if best else None

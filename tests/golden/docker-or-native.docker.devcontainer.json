@@ -1,0 +1,17 @@
+{
+  "name": "docker-or-native (rtfmup)",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [
+    8000
+  ],
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Compose mode: the 'app' service must mount the repository at /workspaces/${localWorkspaceFolderBasename} for the editor to find your code.",
+        "Start the app with: docker compose up"
+      ]
+    }
+  }
+}

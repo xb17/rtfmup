@@ -118,7 +118,7 @@ def _where(r: Runtime) -> str:
     return f"{ev.file}:{ev.line_start}" if ev.line_start else ev.file
 
 
-def _component_runtimes(a: Analysis, comp: Component) -> list[Runtime]:
+def component_runtimes(a: Analysis, comp: Component) -> list[Runtime]:
     out: list[Runtime] = []
     for r in a.runtimes:
         if r.name not in comp.runtimes:
@@ -158,7 +158,7 @@ def compute_gaps(
 
     # --- runtimes the steps start and the specs the manifests ask for ---------
     needed: dict[str, list[Runtime]] = {}
-    for r in _component_runtimes(a, comp):
+    for r in component_runtimes(a, comp):
         needed.setdefault(r.name, []).append(r)
     for s in steps:
         if not s.platform_ok:

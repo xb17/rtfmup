@@ -1,0 +1,15 @@
+{
+  "name": "polyglot-server-client (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {}
+  },
+  "postCreateCommand": "(cd client && npm ci)",
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Start the app with: npm run dev"
+      ]
+    }
+  }
+}

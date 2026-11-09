@@ -13,14 +13,17 @@ from rich.console import Console
 
 from rtfmup import __version__, ui
 from rtfmup.analyze import analyze, remote_urls
+from rtfmup.export.devcontainer import build_devcontainer, linux_host
 from rtfmup.host.probe import probe_host
 from rtfmup.models import Ambiguity, Analysis
 from rtfmup.plan.build import BadChoice, Choices, Unanswered, build_plan
+from rtfmup.plan.model import Plan
 from rtfmup.plan.render import render_plan
-from rtfmup.plan.store import plan_json, write_plan
+from rtfmup.plan.store import DEVCONTAINER_FILE, plan_json, write_plan, write_state_file
 from rtfmup.source import SourceError, resolve
 
 EXIT_USAGE = 2
+EXIT_DECLINED = 3
 
 app = typer.Typer(
     name="rtfmup",
@@ -101,6 +104,26 @@ def _ask(questions: list[Ambiguity], choices: Choices) -> Choices:
     return dataclasses.replace(choices, **answers)
 
 
+def _build_answered(source, analysis: Analysis, host, choices: Choices) -> Plan:
+    """build_plan, asking (or failing with the flag to pass) for open questions."""
+    own = [*remote_urls(source.root), *([source.url] if source.url else [])]
+    while True:
+        try:
+            return build_plan(analysis, host, choices, own_urls=own)
+        except BadChoice as exc:
+            ui.error(str(exc))
+            raise typer.Exit(EXIT_USAGE) from exc
+        except Unanswered as exc:
+            if not _is_interactive():
+                for q in exc.questions:
+                    flag = _FLAG_FOR.get(q.id, "")
+                    ui.error(
+                        f"{q.question} Pass {flag} with one of: {', '.join(q.options)}"
+                    )
+                raise typer.Exit(EXIT_USAGE) from exc
+            choices = _ask(exc.questions, choices)
+
+
 @app.command()
 def plan(
     target: Annotated[str, typer.Argument(help="Local directory or Git URL.")] = ".",
@@ -133,24 +156,9 @@ def plan(
         ui.error(str(exc))
         raise typer.Exit(EXIT_USAGE) from exc
 
-    own = [*remote_urls(source.root), *([source.url] if source.url else [])]
-    choices = Choices(variant=variant, component=component, run=run)
-    while True:
-        try:
-            result = build_plan(analysis, host, choices, own_urls=own)
-            break
-        except BadChoice as exc:
-            ui.error(str(exc))
-            raise typer.Exit(EXIT_USAGE) from exc
-        except Unanswered as exc:
-            if not _is_interactive():
-                for q in exc.questions:
-                    flag = _FLAG_FOR.get(q.id, "")
-                    ui.error(
-                        f"{q.question} Pass {flag} with one of: {', '.join(q.options)}"
-                    )
-                raise typer.Exit(EXIT_USAGE) from exc
-            choices = _ask(exc.questions, choices)
+    result = _build_answered(
+        source, analysis, host, Choices(variant=variant, component=component, run=run)
+    )
 
     saved = write_plan(source.root, result)
     if json_out:
@@ -199,9 +207,70 @@ def config() -> None:
 
 
 @export_app.command("devcontainer")
-def export_devcontainer(target: TargetArg) -> None:
-    """Write a devcontainer.json derived from the analysis."""
-    _stub("export devcontainer")
+def export_devcontainer(
+    target: Annotated[str, typer.Argument(help="Local directory or Git URL.")] = ".",
+    write: Annotated[
+        bool,
+        typer.Option(
+            "--write",
+            help="Also write .devcontainer/devcontainer.json in the repo (asks first; never overwrites).",
+        ),
+    ] = False,
+    variant: Annotated[
+        str | None, typer.Option(help="Setup path, e.g. native or docker.")
+    ] = None,
+    component: Annotated[
+        str | None, typer.Option(help="Component id in a multi-component repo.")
+    ] = None,
+    run: Annotated[
+        str | None,
+        typer.Option(help="Which run command to use when README and manifests differ."),
+    ] = None,
+    fresh: Annotated[
+        bool, typer.Option("--fresh", help="Ignore the cached analysis.")
+    ] = False,
+) -> None:
+    """Print a devcontainer.json for TARGET and save it to .rtfmup/. Runs nothing."""
+    try:
+        ui.stage(1, 3, "Resolving target")
+        source = resolve(target)
+        ui.stage(2, 3, "Analyzing")
+        analysis = analyze(source.root, fresh=fresh)
+    except (SourceError, NotADirectoryError) as exc:
+        ui.error(str(exc))
+        raise typer.Exit(EXIT_USAGE) from exc
+    ui.stage(3, 3, "Planning for a Linux container")
+    result = _build_answered(
+        source,
+        analysis,
+        linux_host(),
+        Choices(variant=variant, component=component, run=run),
+    )
+    text = json.dumps(build_devcontainer(analysis, result, root=source.root), indent=2)
+    text += "\n"
+
+    saved = write_state_file(source.root, DEVCONTAINER_FILE, text)
+    sys.stdout.buffer.write(text.encode("utf-8"))
+    sys.stdout.buffer.flush()
+    ui.done(f"Saved to {saved}." if saved else "Not saved (directory not writable).")
+
+    if write:
+        target_file = source.root / ".devcontainer" / "devcontainer.json"
+        legacy = source.root / ".devcontainer.json"
+        existing = next((p for p in (target_file, legacy) if p.exists()), None)
+        if existing is not None:
+            ui.error(f"{existing} already exists; refusing to overwrite it.")
+            raise typer.Exit(EXIT_USAGE)
+        if not _is_interactive():
+            ui.error("--write asks for confirmation and needs a terminal.")
+            raise typer.Exit(EXIT_USAGE)
+        if not typer.confirm(f"Create {target_file}?", default=False, err=True):
+            ui.done("Not written.")
+            raise typer.Exit(EXIT_DECLINED)
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        # Same depth as .rtfmup/, so the relative compose path stays valid.
+        target_file.write_text(text, encoding="utf-8", newline="\n")
+        ui.done(f"Wrote {target_file}.")
 
 
 @recipe_app.command("show")

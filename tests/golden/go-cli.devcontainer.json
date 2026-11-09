@@ -1,0 +1,17 @@
+{
+  "name": "go-cli (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.22"
+    }
+  },
+  "postCreateCommand": "go mod download",
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Start the app with: go run ."
+      ]
+    }
+  }
+}

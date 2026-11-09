@@ -1,0 +1,21 @@
+{
+  "name": "node-pnpm (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "20"
+    }
+  },
+  "postCreateCommand": "pnpm install && (test -f .env || cp .env.example .env)",
+  "forwardPorts": [
+    3000
+  ],
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Start the app with: pnpm dev",
+        "Needs values for: API_KEY, DATABASE_URL. Secret-like values are asked for at run time and never stored."
+      ]
+    }
+  }
+}

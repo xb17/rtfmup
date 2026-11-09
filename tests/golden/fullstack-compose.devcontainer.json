@@ -1,0 +1,22 @@
+{
+  "name": "fullstack-compose (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {}
+  },
+  "postCreateCommand": "npm ci && (test -f .env || cp .env.example .env)",
+  "forwardPorts": [
+    3000
+  ],
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Start the app with: npm run start",
+        "Needs values for: SECRET_KEY, STRIPE_API_KEY. Secret-like values are asked for at run time and never stored.",
+        "Stripe dashboard: an account or API key is needed.",
+        "postgres on port 5432 is expected; the compose file defines it but the native path does not start it.",
+        "redis on port 6379 is expected; the compose file defines it but the native path does not start it."
+      ]
+    }
+  }
+}

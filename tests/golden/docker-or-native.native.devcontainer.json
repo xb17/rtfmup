@@ -1,0 +1,19 @@
+{
+  "name": "docker-or-native (rtfmup)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {}
+  },
+  "postCreateCommand": "pip install -r requirements.txt",
+  "forwardPorts": [
+    8000
+  ],
+  "customizations": {
+    "rtfmup": {
+      "notes": [
+        "Start the app with: python app.py",
+        "postgres on port 5432 is expected; the compose file defines it but the native path does not start it."
+      ]
+    }
+  }
+}

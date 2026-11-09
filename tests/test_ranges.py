@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from rtfmup.host.ranges import parse_version, satisfies
+from rtfmup.host.ranges import minimum_version, parse_version, satisfies
 
 
 @pytest.mark.parametrize(
@@ -139,3 +139,34 @@ def test_unparseable_installed_version_cannot_verify():
 )
 def test_dotnet_and_rust_specs(runtime, version, spec, expected):
     assert satisfies(runtime, version, spec) is expected
+
+
+@pytest.mark.parametrize(
+    ("runtime", "spec", "expected"),
+    [
+        ("node", "20", "20"),
+        ("node", "20.x", "20"),
+        ("node", "v20.11.1", "20.11.1"),
+        ("node", ">=18", "18"),
+        ("node", ">=18 <21", "18"),
+        ("node", "^16 || ^18", "16"),
+        ("node", "~1.2", "1.2"),
+        ("node", "20+", "20"),
+        ("node", "<21", None),  # no lower bound
+        ("node", "lts/*", None),
+        ("node", "*", None),
+        ("python", ">=3.11,<3.13", "3.11"),
+        ("python", "~=3.11", "3.11"),
+        ("python", "==3.12.*", "3.12"),
+        ("go", "1.22", "1.22"),
+        ("rust", "1.75", "1.75"),
+        ("rust", "stable", None),
+        ("rust", "nightly-2024-01-01", None),
+        ("dotnet", "net8.0", "8.0"),
+        ("dotnet", "net8.0;net9.0", "8.0"),
+        ("dotnet", "8.0.100", "8.0.100"),
+        ("dotnet", "netstandard2.0", None),
+    ],
+)
+def test_minimum_version(runtime, spec, expected):
+    assert minimum_version(runtime, spec) == expected
