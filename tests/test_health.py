@@ -24,8 +24,10 @@ from rtfmup.models import Port
 from rtfmup.plan.model import Step
 
 SERVER = (
-    "import http.server, sys\n"
-    "http.server.HTTPServer(('127.0.0.1', int(sys.argv[1])),"
+    # TCPServer, not HTTPServer: HTTPServer.server_bind calls socket.getfqdn(),
+    # a reverse-DNS lookup that stalls for tens of seconds on macOS CI runners.
+    "import http.server, socketserver, sys\n"
+    "socketserver.TCPServer(('127.0.0.1', int(sys.argv[1])),"
     " http.server.SimpleHTTPRequestHandler).serve_forever()"
 )
 
