@@ -166,3 +166,19 @@ def test_doctor_json(monkeypatch):
     data = json.loads(result.output)
     assert data["os"] == "windows"
     assert data["tools"]["git"]["version"] == "2.56.0"
+
+
+def test_up_on_linux_host_stops_before_running_anything(tmp_path, monkeypatch, capsys):
+    import shutil
+
+    from hosts import linux_full
+
+    repo = tmp_path / "py-http"
+    shutil.copytree(
+        FIXTURE.parent / "py-http", repo, ignore=shutil.ignore_patterns(".rtfmup")
+    )
+    monkeypatch.setattr("rtfmup.cli.probe_host", linux_full)
+    assert main(["up", str(repo), "--yes"]) == 2
+    err = capsys.readouterr().err
+    assert "not yet supported on this OS" in err
+    assert not (repo / ".env").exists() and not (repo / ".venv").exists()

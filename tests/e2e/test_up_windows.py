@@ -19,6 +19,24 @@ FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "py-http"
 pytestmark = pytest.mark.e2e
 
 
+def test_up_stops_cleanly_off_windows(tmp_path):
+    """D7: until M5, other hosts must stop with a clear message, running nothing."""
+    if sys.platform == "win32":
+        pytest.skip("covered by the Windows test")
+    repo = tmp_path / "py-http"
+    shutil.copytree(FIXTURE, repo, ignore=shutil.ignore_patterns(".rtfmup", ".venv"))
+    proc = subprocess.run(
+        [sys.executable, "-m", "rtfmup.cli", "up", str(repo), "--yes"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    assert "not yet supported on this OS" in proc.stderr
+    assert not (repo / ".venv").exists() and not (repo / ".env").exists()
+
+
 def test_up_reaches_up_on_windows(tmp_path):
     if sys.platform != "win32":
         pytest.skip("Windows only until M5")
