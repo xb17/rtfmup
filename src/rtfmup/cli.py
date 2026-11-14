@@ -5,7 +5,9 @@ from __future__ import annotations
 import dataclasses
 import json
 import shutil
+import signal
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -13,6 +15,8 @@ from rich.console import Console
 
 from rtfmup import __version__, ui
 from rtfmup.analyze import analyze, remote_urls
+from rtfmup.execute.health import DEFAULT_HEALTH_TIMEOUT
+from rtfmup.execute.up import execute_plan
 from rtfmup.export.devcontainer import build_devcontainer, linux_host
 from rtfmup.host.probe import probe_host
 from rtfmup.models import Ambiguity, Analysis
@@ -27,7 +31,7 @@ EXIT_DECLINED = 3
 
 app = typer.Typer(
     name="rtfmup",
-    help="Set up any repo from its README. (Early development: `scan`, `plan`, `doctor` and `export devcontainer` work; `up` does not yet.)",
+    help="Set up any repo from its README. (Early development: `scan`, `plan`, `doctor`, `export devcontainer` and `up` (Windows) work.)",
     add_completion=False,
     no_args_is_help=True,
 )
@@ -67,10 +71,85 @@ def _stub(name: str) -> None:
     raise typer.Exit(EXIT_USAGE)
 
 
+_UP_STAGES = 4
+
+
+def _treat_break_as_interrupt() -> None:
+    """Windows: Ctrl+Break and console close act like Ctrl+C, so the child tree is
+    stopped instead of orphaned. Python only maps CTRL_C_EVENT to KeyboardInterrupt."""
+    if sys.platform != "win32":
+        return
+
+    def handler(signum, frame):
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGBREAK, handler)
+
+
 @app.command()
-def up(target: TargetArg) -> None:
-    """Analyze TARGET, show the plan, and set it up."""
-    _stub("up")
+def up(
+    target: TargetArg,
+    yes: Annotated[
+        bool,
+        typer.Option(
+            "--yes", "-y", help="Approve low and medium risk steps. Never high risk."
+        ),
+    ] = False,
+    variant: Annotated[
+        str | None, typer.Option(help="Setup path, e.g. native or docker.")
+    ] = None,
+    component: Annotated[
+        str | None, typer.Option(help="Component id in a multi-component repo.")
+    ] = None,
+    run: Annotated[
+        str | None,
+        typer.Option(help="Which run command to use when README and manifests differ."),
+    ] = None,
+    dest: Annotated[
+        Path | None,
+        typer.Option(help="Directory to clone URL targets into (default: the cache)."),
+    ] = None,
+    fresh: Annotated[
+        bool, typer.Option("--fresh", help="Ignore the cached analysis.")
+    ] = False,
+    health_timeout: Annotated[
+        float, typer.Option(help="Seconds to wait for the run step's port.")
+    ] = DEFAULT_HEALTH_TIMEOUT,
+) -> None:
+    """Analyze TARGET, show the plan, confirm, set it up, and run it."""
+    try:
+        ui.stage(1, _UP_STAGES, "Resolving target")
+        source = resolve(target, cache=dest)
+        ui.stage(2, _UP_STAGES, "Analyzing")
+        analysis = analyze(source.root, fresh=fresh)
+        ui.stage(3, _UP_STAGES, "Probing this host (read-only)")
+        host = probe_host()
+    except (SourceError, NotADirectoryError) as exc:
+        ui.error(str(exc))
+        raise typer.Exit(EXIT_USAGE) from exc
+
+    result = _build_answered(
+        source, analysis, host, Choices(variant=variant, component=component, run=run)
+    )
+    write_plan(source.root, result)
+    ui.stage(4, _UP_STAGES, "Plan")
+    render_plan(result, Console(width=max(100, shutil.get_terminal_size().columns)))
+    typer.echo("", err=True)
+
+    _treat_break_as_interrupt()
+    outcome = execute_plan(
+        result,
+        analysis,
+        source.root,
+        assume_yes=yes,
+        interactive=_is_interactive(),
+        health_timeout=health_timeout,
+    )
+    if outcome.outcome in ("up", "stopped"):
+        ui.done(outcome.message or "Stopped.")
+    else:
+        ui.error(outcome.message or outcome.outcome)
+    raise typer.Exit(outcome.exit_code)
 
 
 _FLAG_FOR = {

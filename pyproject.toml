@@ -52,6 +52,11 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not e2e and not provider_e2e'"
+markers = [
+    "e2e: runs `rtfmup up` for real on a synthetic fixture (Windows); opt in with -m e2e",
+    "provider_e2e: installs a runtime through a real provider; GitHub windows-latest only",
+]
 
 
 [tool.ruff]

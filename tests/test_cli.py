@@ -34,7 +34,6 @@ def test_scan_missing_path_exits_2(tmp_path):
 @pytest.mark.parametrize(
     "args",
     [
-        ["up", "x"],
         ["config"],
         ["recipe", "show", "x"],
     ],
@@ -62,8 +61,9 @@ def test_shim(argv, expected):
 
 
 def test_bare_target_means_up(capsys):
-    assert main([str(FIXTURE)]) == 2
-    assert "'up' is not implemented yet" in capsys.readouterr().err
+    # A missing directory is a usage error from `up`, not "unknown command".
+    assert main([str(FIXTURE / "nope")]) == 2
+    assert "not a directory" in capsys.readouterr().err
 
 
 def test_scan_is_not_up_scan(capsys):
@@ -71,7 +71,7 @@ def test_scan_is_not_up_scan(capsys):
     assert main(["scan", str(FIXTURE)]) == 0
     capsys.readouterr()
     assert main(["up", "scan"]) == 2
-    assert "'up' is not implemented yet" in capsys.readouterr().err
+    assert "not a directory" in capsys.readouterr().err
 
 
 def test_scan_json_validates_against_the_schema_and_is_lf():

@@ -23,6 +23,10 @@ Status = Literal["ok", "failed", "timeout", "cancelled", "error"]
 DEFAULT_TIMEOUT = 30 * 60  # seconds, for non-run steps. `run` steps pass None.
 _GRACE = 5.0  # seconds between the polite stop and the forced tree kill
 _POLL = 0.1
+# rtfmup's own interpreter environment must not steer the target repo's tools
+# (uv warns and ignores a VIRTUAL_ENV that is not the project's). A step can
+# still set these explicitly.
+_OWN_PYTHON_ENV = ("VIRTUAL_ENV", "PYTHONHOME")
 
 _LABEL = {
     "ok": "done",
@@ -179,7 +183,8 @@ def run_step(
     out = out or sys.stdout
     err = err or sys.stderr
     cancel = cancel or threading.Event()
-    child_env = {**os.environ, **step.env, **(env or {})}
+    inherited = {k: v for k, v in os.environ.items() if k not in _OWN_PYTHON_ENV}
+    child_env = {**inherited, **step.env, **(env or {})}
     redact = Redactor(child_env)
 
     def say(msg: str) -> None:

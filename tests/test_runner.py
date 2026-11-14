@@ -205,3 +205,12 @@ def test_log_records_command_exit_code_and_timing(tmp_path):
     assert any(
         "status=failed exit=3" in ln and ln.rstrip().endswith("s") for ln in lines
     )
+
+
+def test_own_virtualenv_is_not_inherited(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIRTUAL_ENV", "C:/rtfmup/.venv")
+    code = "import os; print(os.environ.get('VIRTUAL_ENV', 'unset'))"
+    _, out, _ = run(py(code), tmp_path)
+    assert out.strip() == "unset"
+    _, out, _ = run(py(code, env={"VIRTUAL_ENV": "mine"}), tmp_path)
+    assert out.strip() == "mine"
