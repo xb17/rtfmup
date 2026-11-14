@@ -267,7 +267,9 @@ def test_run_step_reaches_up_then_ctrl_c(tmp_path):
         cancel=cancel,
         health_timeout=30,
     )
-    assert result.outcome == "up" and result.exit_code == 0
+    assert result.outcome == "up" and result.exit_code == 0, (
+        f"{result.outcome}: {result.message} | {err.getvalue()!r}"
+    )
     assert f"Up: http://localhost:{port}" in err.getvalue()
     s = state(tmp_path)
     assert s["steps"]["r"]["status"] == "cancelled" and s["outcome"] == "up"

@@ -47,7 +47,7 @@ CASES = {
             "--accept-source-agreements",
         ],
     ),
-    "choco": ("bun", None, ["choco", "list", "--exact", "bun", "--local-only"]),
+    "choco": ("bun", None, ["choco", "list", "--exact", "bun"]),
 }
 TOOL = {"uv_python": "uv", "scoop": "scoop", "winget": "winget", "choco": "choco"}
 
@@ -85,6 +85,9 @@ def test_provider_installs_a_runtime(name, tmp_path):
             step, tmp_path, index=i, total=len(steps), timeout=900, out=out, err=err
         )
         assert result.ok, f"{step.title}\n{out.getvalue()}\n{err.getvalue()}"
+    # Resolve through PATHEXT: scoop and choco are .cmd/.ps1 shims, which
+    # CreateProcess does not find from a bare name.
+    verify = [shutil.which(verify[0]) or verify[0], *verify[1:]]
     check = subprocess.run(
         verify, capture_output=True, text=True, timeout=120, check=False
     )
