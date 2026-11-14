@@ -27,7 +27,7 @@ EXIT_DECLINED = 3
 
 app = typer.Typer(
     name="rtfmup",
-    help="Set up any repo from its README. (Early development: only `scan` works.)",
+    help="Set up any repo from its README. (Early development: `scan`, `plan`, `doctor` and `export devcontainer` work; `up` does not yet.)",
     add_completion=False,
     no_args_is_help=True,
 )

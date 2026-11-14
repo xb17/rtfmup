@@ -3,7 +3,7 @@
 **Set up any repo from its README.**
 Read The Fine Manual, then bring it `up`.
 
-> ⚠️ **Early development.** This release analyses a repo and reports what it found. It does not set anything up yet: `up`, `plan` and the other commands are stubs.
+> ⚠️ **Early development.** This release analyses a repo, builds a setup plan, and can export a devcontainer. It does not set anything up yet: `up` and `recipe` are stubs.
 
 ## What it will do
 
@@ -22,7 +22,13 @@ rtfmup --version
 rtfmup scan [path|url]          # analyse a repo (default: .); a URL is cloned into the cache dir
 rtfmup scan [path|url] --json   # the same analysis as JSON (schema: rtfmup schema)
 rtfmup scan [path|url] --fresh  # ignore the cached analysis
+rtfmup plan [path|url]          # show the ordered setup plan, with risk levels and gaps; runs nothing
+rtfmup plan [path|url] --json   # the same plan as JSON (also saved to .rtfmup/plan.json)
+rtfmup doctor                   # probe this machine: OS, shells, installed tools (read-only)
+rtfmup export devcontainer [path|url] [--write]   # print a devcontainer.json; --write saves it to .devcontainer/ after asking
 ```
+
+`plan` accepts `--variant` (for example native or docker), `--component` (multi-component repos) and `--run` (pick the run command when README and manifests differ).
 
 `scan` is read-only. It reads manifests (Python, Node, Rust, Go, Ruby, PHP, .NET, Docker and Compose,
 env templates, Makefile/Justfile, devcontainer, CI, deployment files), reads the README
@@ -34,7 +40,7 @@ questions it would have to ask. It never runs anything from the repo.
 ```console
 rtfmup <url|path>   # full flow: analyse, show plan, confirm, set up, run
 rtfmup scan <path>  # analysis only (manifests + README), as summary or JSON
-rtfmup plan <path>  # show the execution plan without running anything
+rtfmup plan <path>  # show the execution plan without running anything (available now)
 ```
 
 ## Roadmap
