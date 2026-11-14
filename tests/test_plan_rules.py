@@ -166,11 +166,11 @@ def test_secret_exports_are_never_stored(tmp_path):
         "w",
         {
             "package.json": PKG,
-            "README.md": _readme("export API_TOKEN=abc123\nnpm start"),
+            "README.md": _readme("export API_TOKEN=tok-Zq9x\nnpm start"),
         },
     )
     plan = _build(root)
-    assert "abc123" not in plan.model_dump_json()
+    assert "tok-Zq9x" not in plan.model_dump_json()
     assert any(g.kind == "missing_env" and "API_TOKEN" in g.message for g in plan.gaps)
 
 
@@ -330,7 +330,7 @@ def test_a_cd_in_a_section_for_another_variant_is_not_a_gap(tmp_path):
 
 def test_powershell_env_assignment_is_step_env_like_export(tmp_path):
     body = (
-        '$env:PORT = "4000"\n$env:API_TOKEN = "abc"\n'
+        '$env:PORT = "4000"\n$env:API_TOKEN = "tok-Zq9x"\n'
         '$env:REGION = "<your-region>"\nnpm start'
     )
     root = _repo(tmp_path, "w", {"package.json": PKG, "README.md": _readme(body)})
@@ -339,7 +339,7 @@ def test_powershell_env_assignment_is_step_env_like_export(tmp_path):
     assert run.env == {
         "PORT": "4000"
     }  # secret-like and placeholder values are not kept
-    assert "abc" not in plan.model_dump_json()
+    assert "tok-Zq9x" not in plan.model_dump_json()
     missing = [g.message for g in plan.gaps if g.kind == "missing_env"]
     assert any("API_TOKEN" in m for m in missing) and any(
         "REGION" in m for m in missing
