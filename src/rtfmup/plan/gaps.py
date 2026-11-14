@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import posixpath
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from rtfmup.host.probe import HostProfile
 from rtfmup.host.ranges import satisfies
@@ -151,8 +151,26 @@ def compute_gaps(
     steps: list[Step],
     host: HostProfile,
     carried: Iterable[Gap] = (),
+    provision: Callable[[str, str | None], list[Step]] | None = None,
+    provisioned: list[Step] | None = None,
 ) -> list[Gap]:
+    """Gaps for this host. With `provision`, a missing or too-old runtime that a
+    provider can install becomes install steps (appended to `provisioned`) instead
+    of a gap; a runtime nothing can install stays a gap with the manual fix."""
     gaps: list[Gap] = []
+    provided: set[str] = set()
+
+    def provide(runtime: str, spec: str | None) -> bool:
+        if runtime in provided:
+            return True
+        steps_ = provision(runtime, spec) if provision else []
+        if not steps_:
+            return False
+        provided.add(runtime)
+        if provisioned is not None:
+            provisioned.extend(steps_)
+        return True
+
     uses_uv = "uv" in comp.package_managers and host.tools.get("uv") is not None
     uv_installed = uses_uv and host.tools["uv"].found
 
@@ -178,6 +196,8 @@ def compute_gaps(
         specs = [r for r in needed[name] if r.version_spec]
         if not info.found:
             tools_missing.add(name)
+            if provide(name, specs[0].version_spec if specs else None):
+                continue
             want = f" {specs[0].version_spec}" if specs else ""
             where = f" ({_where(specs[0])})" if specs else ""
             gaps.append(
@@ -208,6 +228,8 @@ def compute_gaps(
                         ),
                     )
                 )
+            elif provide(name, spec):
+                continue
             else:
                 gaps.append(
                     Gap(

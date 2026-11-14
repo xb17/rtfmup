@@ -75,7 +75,8 @@ def test_python_missing_without_uv_is_a_gap_for_python_and_uv(tmp_path):
     messages = " ".join(
         g.message for g in _of(_gaps(tmp_path, "py-uv", host), "missing_runtime")
     )
-    assert "Python" in messages and "uv" in messages
+    # Python is provisioned by a provider now; uv has no provider and stays a gap.
+    assert "uv" in messages and "Python" not in messages
 
 
 def test_package_manager_missing(tmp_path):

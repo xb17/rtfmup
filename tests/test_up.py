@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import socket
 import sys
 import threading
@@ -281,3 +282,23 @@ def test_run_step_that_never_listens_fails(tmp_path):
         health_timeout=1,
     )
     assert result.outcome == "failed" and "not up after" in result.message
+
+
+def test_runtime_step_refreshes_path_for_later_steps(tmp_path, monkeypatch):
+    new_dir = str(tmp_path / "freshly-installed")
+    monkeypatch.setattr(
+        "rtfmup.execute.up.refreshed_path",
+        lambda current: new_dir + os.pathsep + current,
+    )
+    seen = tmp_path / "path.txt"
+    steps = [
+        py("rt", "runtime", "pass"),
+        py(
+            "after",
+            "setup",
+            f"import os; open({str(seen)!r}, 'w').write(os.environ['PATH'])",
+        ),
+    ]
+    result, _, _ = go(make_plan(steps), tmp_path, assume_yes=True)
+    assert result.outcome == "stopped"
+    assert seen.read_text().startswith(new_dir)

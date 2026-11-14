@@ -8,6 +8,7 @@ one by one, and every step's outcome lands in `.rtfmup/state.json`.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 from dataclasses import dataclass, field
@@ -20,6 +21,7 @@ from rtfmup.execute.confirm import Confirmer, is_runnable
 from rtfmup.execute.envsetup import EnvResult, Prompter, setup_env
 from rtfmup.execute.health import DEFAULT_HEALTH_TIMEOUT, run_with_health
 from rtfmup.execute.runner import DEFAULT_TIMEOUT, RunLog, run_step
+from rtfmup.execute.winpath import refreshed_path
 from rtfmup.models import Analysis
 from rtfmup.plan.model import Gap, Plan, Step
 from rtfmup.plan.store import write_state_file
@@ -168,6 +170,7 @@ def execute_plan(
     prompter = prompter or Prompter(interactive=interactive and not assume_yes, out=err)
     cancel = cancel or threading.Event()
     total = len(to_run) + len(env_steps)
+    child_env: dict[str, str] = {}  # grows when a runtime step changes PATH
 
     def done(outcome: Outcome, message: str = "") -> UpResult:
         state.finish(outcome)
@@ -215,6 +218,7 @@ def execute_plan(
                 health_timeout=health_timeout,
                 index=index,
                 total=total,
+                env=child_env,
                 log=log,
                 out=out,
                 err=err,
@@ -237,6 +241,7 @@ def execute_plan(
             index=index,
             total=total,
             timeout=step_timeout,
+            env=child_env,
             log=log,
             out=out,
             err=err,
@@ -250,5 +255,9 @@ def execute_plan(
         )
         if not res.ok:
             return done("failed", f"{step.title}: {res.status}.")
+        if step.kind == "runtime":
+            child_env["PATH"] = refreshed_path(
+                child_env.get("PATH", os.environ.get("PATH", ""))
+            )
 
     return done("stopped", "Setup finished; the plan has no run step.")

@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from rtfmup.execute.providers import select_steps
 from rtfmup.host.probe import HostProfile
 from rtfmup.models import Ambiguity, Analysis, Command, Component, SourceRef
 from rtfmup.plan.gaps import compute_gaps, owner_of
@@ -29,6 +30,23 @@ from rtfmup.plan.model import Gap, Plan, Step, StepKind
 from rtfmup.plan.risk import rate
 from rtfmup.plan.translate import split_argv, to_windows
 from rtfmup.resolve import manifest_run_candidates
+
+
+def _provider_steps(host: HostProfile):
+    """Install steps for a runtime, from the first provider that can (D12).
+
+    Windows only until M5 defines the other orders; elsewhere a missing runtime
+    stays a gap with its manual fix. A `manual`-only answer is not an install.
+    """
+    if host.os != "windows":
+        return None
+
+    def provision(runtime: str, spec: str | None) -> list[Step]:
+        steps = select_steps(runtime, spec, host)
+        return steps if steps and all(s.kind != "manual" for s in steps) else []
+
+    return provision
+
 
 PLAN_CATEGORIES = ("install", "setup", "build", "run")  # test/lint/other never run
 
@@ -718,7 +736,18 @@ def build_plan(
                 )
             )
 
-    all_gaps = compute_gaps(a, comp, variant, steps, host, carried=gaps)
+    provisioned: list[Step] = []
+    all_gaps = compute_gaps(
+        a,
+        comp,
+        variant,
+        steps,
+        host,
+        carried=gaps,
+        provision=_provider_steps(host),
+        provisioned=provisioned,
+    )
+    steps = [*provisioned, *steps]  # runtimes first: everything else needs them
 
     return Plan(
         analysis_ref=analysis_ref(a),
