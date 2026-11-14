@@ -141,7 +141,14 @@ def _pid_alive(pid: int) -> bool:
         os.kill(pid, 0)
     except OSError:
         return False
-    return True
+    # A killed orphan is a zombie until something reaps it, and a container whose
+    # PID 1 doesn't reap (the Gitea runner) keeps it forever. os.kill() still
+    # succeeds on a zombie, but it is not running.
+    try:
+        with open(f"/proc/{pid}/stat", encoding="ascii") as fh:
+            return fh.read().rsplit(")", 1)[1].split()[0] != "Z"
+    except OSError:
+        return True  # no /proc (macOS): os.kill() above is the answer
 
 
 def test_missing_program_is_an_error_not_a_crash(tmp_path):
