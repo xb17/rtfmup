@@ -209,6 +209,12 @@ def execute_plan(
         index += 1
         if step.risk == "high" and not confirmer.confirm_high_risk(step):
             state.set(step.id, "skipped", reason="high risk, not approved")
+            if step.kind == "run":
+                # Setup ran, but the project was never started: not a success.
+                return done(
+                    "declined",
+                    f"Setup finished, but the run step was not approved: {step.title}",
+                )
             continue
 
         if step.kind == "run":

@@ -315,3 +315,11 @@ def test_working_directory_gap_blocks_too(tmp_path):
     result, _, err = go(make_plan([step], gaps=[gap]), tmp_path, assume_yes=True)
     assert result.outcome == "blocked" and not marker.exists()
     assert "cd nowhere" in err
+
+
+def test_a_declined_run_step_is_not_reported_as_success(tmp_path):
+    """express: setup ran, the high-risk run step was skipped, and up exited 0."""
+    setup = py("a", "setup", "pass")
+    run = py("r", "run", "pass", long_running=True).model_copy(update={"risk": "high"})
+    result, _, _ = go(make_plan([setup, run]), tmp_path, assume_yes=True)
+    assert result.outcome == "declined" and result.exit_code != 0
