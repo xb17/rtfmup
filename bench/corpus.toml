@@ -63,6 +63,7 @@ sha = "c4f983a457e4ccb18e0836890b0dd80f11c2739a"
 ecosystem = "node"
 why = "Node app, port health check, Docker alternative"
 e2e = true
+fetch_tags = true  # `npm run setup` runs `git checkout <release tag>`
 
 [[repo]]
 name = "laravel"

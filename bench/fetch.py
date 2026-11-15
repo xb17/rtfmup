@@ -44,6 +44,7 @@ def ensure_checkout(repo: dict, cache: Path | None = None) -> Path:
     """A work tree of exactly `repo['sha']` (shallow: the benchmark needs no history)."""
     dest = checkout_dir(repo, cache)
     if (dest / ".git").is_dir():
+        _ensure_origin_and_tags(repo, dest)
         return dest
     dest.mkdir(parents=True, exist_ok=True)
     print(
@@ -65,7 +66,33 @@ def ensure_checkout(repo: dict, cache: Path | None = None) -> Path:
         dest,
     )
     _git(["-c", "advice.detachedHead=false", "checkout", "-q", "FETCH_HEAD"], dest)
+    _ensure_origin_and_tags(repo, dest)
     return dest
+
+
+def _ensure_origin_and_tags(repo: dict, dest: Path) -> None:
+    """Give the checkout the `origin` a real clone has, and tags when the repo needs them.
+
+    rtfmup recognises "the clone we are already in" by remote URL, and a README step
+    such as `git checkout <tag>` needs the tag to exist (`fetch_tags = true`).
+    """
+    url = repo["url"] + ".git"
+    have = subprocess.run(
+        ["git", "remote"], cwd=dest, capture_output=True, text=True, check=False
+    ).stdout.split()
+    if "origin" not in have:
+        _git(["remote", "add", "origin", url], dest)
+    if repo.get("fetch_tags"):
+        tags = subprocess.run(
+            ["git", "tag", "--list"],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.split()
+        if not tags:
+            print(f"Fetching tags for {repo['name']}", file=sys.stderr, flush=True)
+            _git(["fetch", "--depth", "1", "--tags", "--progress", "origin"], dest)
 
 
 def main(argv: list[str]) -> int:
