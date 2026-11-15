@@ -30,6 +30,10 @@ HostOS = Literal["windows", "linux", "macos"]
 HostArch = Literal["x86_64", "arm64"]
 
 PROBE_TIMEOUT = 5.0
+# A probe that got no answer is retried once with this. A tool's first launch on a cold
+# machine (antivirus scanning it) can take far longer than 5 s: on fresh GitHub
+# runners every runtime version came back unknown, then all were found warm.
+PROBE_RETRY_TIMEOUT = 30.0
 _VERSION = re.compile(r"\d+\.\d+(?:\.\d+)?")
 
 
@@ -135,12 +139,17 @@ class _Ctx:
     run: Runner
     which: Which
 
+    def timed(self, argv: list[str]) -> RunResult | None:
+        """Run argv; if it gives no answer in time, once more with a longer limit."""
+        res = self.run(argv, PROBE_TIMEOUT)
+        return res if res is not None else self.run(argv, PROBE_RETRY_TIMEOUT)
+
     def query(self, argv: list[str]) -> RunResult | None:
         """Run argv with its executable resolved to an absolute path."""
         exe = self.which(argv[0])
         if exe is None:
             return None
-        return self.run([exe, *argv[1:]], PROBE_TIMEOUT)
+        return self.timed([exe, *argv[1:]])
 
 
 Probe = Callable[[_Ctx], ToolInfo]
@@ -155,7 +164,7 @@ def _simple(exe: str, *args: str) -> Probe:
         path = ctx.which(exe)
         if path is None:
             return ToolInfo(found=False)
-        res = ctx.run([path, *args], PROBE_TIMEOUT)
+        res = ctx.timed([path, *args])
         m = _VERSION.search(res.stdout) if res and res.returncode == 0 else None
         if m is None:
             return ToolInfo(found=True, path=path, note="probe failed or timed out")
@@ -168,7 +177,7 @@ def _dotnet(ctx: _Ctx) -> ToolInfo:
     path = ctx.which("dotnet")
     if path is None:
         return ToolInfo(found=False)
-    res = ctx.run([path, "--list-sdks"], PROBE_TIMEOUT)
+    res = ctx.timed([path, "--list-sdks"])
     if res is None or res.returncode != 0:
         return ToolInfo(found=True, path=path, note="probe failed or timed out")
     found = {

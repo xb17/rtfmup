@@ -148,6 +148,33 @@ def test_timeout_keeps_found_but_unknown_version():
     assert node.note == "probe failed or timed out"
 
 
+class SlowFirstLaunch(Fake):
+    """A cold machine: each tool's first launch outlasts the short timeout (AV scan)."""
+
+    def __init__(self, installed: set[str]):
+        super().__init__(installed)
+        self.timeouts: list[float] = []
+        self._seen: set[str] = set()
+
+    def run(self, argv, timeout):
+        name = os.path.basename(argv[0])
+        self.timeouts.append(timeout)
+        if name not in self._seen:
+            self._seen.add(name)
+            return None
+        return super().run(argv, timeout)
+
+
+def test_a_probe_that_times_out_is_retried_once_with_a_longer_limit():
+    """Seen on fresh GitHub runners: every version was `?` cold, all found warm."""
+    fake = SlowFirstLaunch(WINDOWS_TOOLS)
+    p = probe(fake)
+    assert p.tools["node"].version == "26.13.0"
+    assert p.tools["go"].version == "1.27.3"
+    assert p.tools["dotnet"].versions == ["10.0.114", "9.0.320"]
+    assert max(fake.timeouts) > min(fake.timeouts)
+
+
 @pytest.mark.parametrize(
     ("rc", "expected"), [(0, True), (1, False)], ids=["up", "down"]
 )
