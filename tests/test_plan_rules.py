@@ -387,6 +387,14 @@ def test_cd_into_the_clone_we_are_already_in_is_not_a_gap(tmp_path):
     assert not [g for g in plan.gaps if g.kind == "working_directory"]
 
 
+def test_a_cd_in_a_usage_example_is_not_a_gap(tmp_path):
+    """fzf's README shows `cd **<TAB>` as shell-completion usage; nothing planned follows."""
+    readme = "# w" + chr(10) * 2 + "## Usage" + chr(10) * 2
+    readme += "```bash" + chr(10) + "cd **<TAB>" + chr(10) + "```" + chr(10)
+    root = _repo(tmp_path, "w", {"package.json": PKG, "README.md": readme})
+    assert not [g for g in _build(root).gaps if g.kind == "working_directory"]
+
+
 PYPROJECT = '[project]\nname = "w"\nversion = "0"\n'
 
 

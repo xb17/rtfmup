@@ -296,6 +296,9 @@ def _variant_ok(cmd: Command, variant: str | None, host_os: str) -> bool:
     return variant != "docker"  # "native" and anything else
 
 
+_CD_FIX = "Create that directory or pass the right target, then run again."
+
+
 def _resolve_cd(root: Path, cwd: str, target: str, own_names: set[str]) -> str | None:
     """New cwd, `cwd` itself for a cd into the clone we are already in, or None."""
     t = target.strip("\"'").rstrip("/\\")
@@ -339,7 +342,10 @@ def _walk(
         if m := _CD.match(text):
             new = _resolve_cd(root, st["cwd"], m.group("dir"), own_names)
             if new is None:
-                out.gaps.append(
+                # Only a problem if a planned command follows it in this section:
+                # usage examples (`cd **<TAB>` in fzf) are not setup.
+                st.setdefault(
+                    "bad_cd",
                     Gap(
                         kind="working_directory",
                         message=(
@@ -347,8 +353,8 @@ def _walk(
                             "directory in this repo, so the commands after it have "
                             "no place to run."
                         ),
-                        fix="Create that directory or pass the right target, then run again.",
-                    )
+                        fix=_CD_FIX,
+                    ),
                 )
             else:
                 st["cwd"] = new
@@ -358,18 +364,21 @@ def _walk(
         if m := _CD_AND.match(text):
             new = _resolve_cd(root, cwd, m.group("dir"), own_names)
             if new is None:
-                out.gaps.append(
-                    Gap(
-                        kind="working_directory",
-                        message=f"README runs `{text}` ({_where(c)}); its `cd` target is not in this repo.",
-                        fix="Create that directory or pass the right target, then run again.",
+                if c.category in PLAN_CATEGORIES:
+                    out.gaps.append(
+                        Gap(
+                            kind="working_directory",
+                            message=f"README runs `{text}` ({_where(c)}); its `cd` target is not in this repo.",
+                            fix=_CD_FIX,
+                        )
                     )
-                )
                 continue
             cwd, text = new, m.group("rest").strip()
 
         if c.category not in PLAN_CATEGORIES:
             continue
+        if (bad := st.pop("bad_cd", None)) is not None:
+            out.gaps.append(bad)
 
         assigned = _env_assignment(text)
         if assigned:

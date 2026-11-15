@@ -56,6 +56,11 @@ jobs:
         with:
           enable-cache: false
       - run: uv sync --locked
+      # What rtfmup's host probe sees, cold (first launch of each tool) then warm.
+      - name: Host probe, cold
+        run: uv run rtfmup doctor
+      - name: Host probe, warm
+        run: uv run rtfmup doctor
       - name: e2e ${{ matrix.repo }}
         env:
           REPO: ${{ matrix.repo }}
