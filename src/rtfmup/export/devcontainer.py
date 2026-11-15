@@ -22,6 +22,7 @@ import yaml
 from rtfmup.host.probe import HostProfile
 from rtfmup.host.ranges import minimum_version
 from rtfmup.models import Analysis, Component
+from rtfmup.plan.build import is_host_venv_step
 from rtfmup.plan.gaps import RUNTIME_OF_EXE, component_runtimes
 from rtfmup.plan.model import Plan, Step
 
@@ -166,12 +167,15 @@ def build_devcontainer(
         doc["features"] = features
 
     commands: list[str] = []
-    if any(_exe(s) in ("uv", "uvx") for s in plan.steps if s.platform_ok):
+    # The container is disposable, so its pip installs globally; the venv rtfmup
+    # plans to keep a README `pip install` off the host has no job here.
+    steps = [s for s in plan.steps if not is_host_venv_step(s)]
+    if any(_exe(s) in ("uv", "uvx") for s in steps if s.platform_ok):
         commands.append("pip install uv")  # documented: docs.astral.sh/uv installation
         notes.append(
             "uv is installed with pip because no official Feature provides it."
         )
-    for s in plan.steps:
+    for s in steps:
         if s.kind not in DEVCONTAINER_STEPS:
             continue
         if not s.platform_ok:

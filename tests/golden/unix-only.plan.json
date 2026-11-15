@@ -39,6 +39,35 @@
       "long_running": false
     },
     {
+      "id": "step-4",
+      "kind": "install",
+      "title": "python3 -m venv venv",
+      "argv": [
+        "python3",
+        "-m",
+        "venv",
+        "venv"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-2"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 7,
+          "line_end": 7,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
       "id": "step-2",
       "kind": "install",
       "title": "pip install -r requirements.txt",
@@ -92,35 +121,6 @@
           "file": "README.md",
           "line_start": 15,
           "line_end": 15,
-          "detector": "readme.fence"
-        }
-      ],
-      "long_running": false
-    },
-    {
-      "id": "step-4",
-      "kind": "setup",
-      "title": "python3 -m venv venv",
-      "argv": [
-        "python3",
-        "-m",
-        "venv",
-        "venv"
-      ],
-      "shell_text": null,
-      "cwd": ".",
-      "env": {},
-      "risk": "low",
-      "risk_reasons": [],
-      "platform_ok": true,
-      "from_commands": [
-        "cmd-2"
-      ],
-      "evidence": [
-        {
-          "file": "README.md",
-          "line_start": 7,
-          "line_end": 7,
           "detector": "readme.fence"
         }
       ],

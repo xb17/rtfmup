@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import sys
 import threading
 import time
@@ -233,3 +234,64 @@ def test_output_the_console_cannot_encode_does_not_kill_the_stream(tmp_path):
     result = run_step(py(code), tmp_path, out=out, err=err)
     assert result.status == "ok"
     assert "done" in out.getvalue()
+
+
+def _fake_venv(root: Path) -> Path:
+    venv = root / ".venv"
+    (venv / runner.VENV_BIN).mkdir(parents=True)
+    (venv / "pyvenv.cfg").write_text("home = x\n", encoding="utf-8")
+    return venv
+
+
+ENV_PROBE = (
+    "import os; print(os.environ.get('VIRTUAL_ENV', 'unset'));"
+    " print(os.environ['PATH'].split(os.pathsep)[0]);"
+    " print(os.environ.get('PIP_REQUIRE_VIRTUALENV', 'unset'))"
+)
+
+
+def test_the_projects_own_venv_is_active_for_steps(tmp_path):
+    venv = _fake_venv(tmp_path)
+    _, out, _ = run(py(ENV_PROBE), tmp_path)
+    active, first_path, require = out.splitlines()
+    assert Path(active) == venv
+    assert Path(first_path) == venv / runner.VENV_BIN
+    assert require == "1"
+
+
+def test_no_venv_means_none_is_activated_but_pip_still_refuses_global(tmp_path):
+    _, out, _ = run(py(ENV_PROBE), tmp_path)
+    active, _, require = out.splitlines()
+    assert active == "unset" and require == "1"
+
+
+def test_a_venv_committed_to_the_repo_is_never_activated(tmp_path):
+    """A tracked .venv is repo content, and repo content is untrusted (PATH hijack)."""
+    import subprocess
+
+    _fake_venv(tmp_path)
+    git = ["git", "-c", "user.email=t@example.com", "-c", "user.name=t"]
+    subprocess.run([*git, "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run([*git, "add", "-f", ".venv"], cwd=tmp_path, check=True)
+    _, out, _ = run(py(ENV_PROBE), tmp_path)
+    assert out.splitlines()[0] == "unset"
+
+
+def test_programs_resolve_on_the_steps_path_not_rtfmups(tmp_path):
+    """A runtime step that adds to PATH must change which program a later step runs."""
+    import shutil
+
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    name = "rtfmup-probe-tool"
+    if sys.platform == "win32":
+        (bindir / f"{name}.cmd").write_text("@echo found-it\r\n", encoding="utf-8")
+    else:
+        script = bindir / name
+        script.write_text("#!/bin/sh\necho found-it\n", encoding="utf-8")
+        script.chmod(0o755)
+    assert shutil.which(name) is None
+    step = Step(id="s1", kind="setup", title="t", argv=[name])
+    path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+    result, out, _ = run(step, tmp_path, env={"PATH": path})
+    assert result.ok and "found-it" in out

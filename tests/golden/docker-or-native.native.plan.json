@@ -6,6 +6,34 @@
   "component": "root",
   "steps": [
     {
+      "id": "step-4",
+      "kind": "install",
+      "title": "uv venv --seed (so the README's pip installs into this project)",
+      "argv": [
+        "uv",
+        "venv",
+        "--seed"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads Python packages"
+      ],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 8,
+          "line_end": 8,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
       "id": "step-1",
       "kind": "install",
       "title": "pip install -r requirements.txt",

@@ -385,3 +385,37 @@ def test_cd_into_the_clone_we_are_already_in_is_not_a_gap(tmp_path):
     )
     plan = _build(root)
     assert not [g for g in plan.gaps if g.kind == "working_directory"]
+
+
+PYPROJECT = '[project]\nname = "w"\nversion = "0"\n'
+
+
+def test_readme_pip_install_gets_a_seeded_venv_first(tmp_path):
+    """A README `pip install` that replaces `uv sync` must not land in a global Python."""
+    root = _repo(
+        tmp_path,
+        "w",
+        {
+            "pyproject.toml": PYPROJECT,
+            "uv.lock": "",
+            "README.md": _readme("pip install w"),
+        },
+    )
+    texts = _texts(_build(root))
+    assert "uv venv --seed" in texts
+    assert texts.index("uv venv --seed") < texts.index("pip install w")
+
+
+def test_the_readmes_own_venv_step_is_used_and_moved_before_pip(tmp_path):
+    """`uv venv` classifies as setup, which sorts after install; pip needs it first."""
+    root = _repo(
+        tmp_path,
+        "w",
+        {
+            "pyproject.toml": PYPROJECT,
+            "README.md": _readme(chr(10).join(["uv venv", "pip install -e ."])),
+        },
+    )
+    texts = _texts(_build(root))
+    assert "uv venv --seed" not in texts
+    assert texts.index("uv venv") < texts.index("pip install -e .")

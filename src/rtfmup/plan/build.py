@@ -738,6 +738,8 @@ def build_plan(
                 )
             )
 
+    steps = _venv_before_pip(steps, ids, host_os)
+
     provisioned: list[Step] = []
     all_gaps = compute_gaps(
         a,
@@ -761,6 +763,63 @@ def build_plan(
         gaps=all_gaps,
         health=health,
     )
+
+
+_VENV_CREATE = re.compile(
+    r"^(?:uv\s+venv|python3?\s+-m\s+venv|py(?:\s+-3(?:\.\d+)?)?\s+-m\s+venv|virtualenv)\b"
+)
+
+
+SEED_VENV = "uv venv --seed"
+
+
+def _step_text(s: Step) -> str:
+    return " ".join(s.argv) if s.argv else (s.shell_text or "")
+
+
+def is_host_venv_step(s: Step) -> bool:
+    """The venv `_venv_before_pip` adds (not one the README asked for)."""
+    return not s.from_commands and _step_text(s) == SEED_VENV
+
+
+def _venv_before_pip(steps: list[Step], ids: _Ids, host_os: str) -> list[Step]:
+    """A README `pip` step runs inside the project's venv, never a global Python.
+
+    If the README creates a venv itself, that step moves to just before the first
+    pip step (`uv venv` classifies as setup, which sorts after install). Otherwise a
+    `uv venv --seed` is planned there: seeded, so the venv has its own `pip` for the
+    README command to find. The runner activates `.venv` for every later step.
+    """
+    first_pip = next(
+        (i for i, s in enumerate(steps) if pm_of(_step_text(s)) == "pip"), None
+    )
+    if first_pip is None:
+        return steps
+    creator = next(
+        (i for i, s in enumerate(steps) if _VENV_CREATE.match(_step_text(s))), None
+    )
+    if creator is not None:
+        if creator < first_pip:
+            return steps
+        # It now runs with the installs, so it is one: keeps the kind order intact.
+        moved = steps[creator].model_copy(update={"kind": "install"})
+        rest = [s for i, s in enumerate(steps) if i != creator]
+        return [*rest[:first_pip], moved, *rest[first_pip:]]
+    pip = steps[first_pip]
+    venv = _command_step(
+        ids,
+        "install",
+        f"{SEED_VENV} (so the README's pip installs into this project)",
+        SEED_VENV,
+        cwd=pip.cwd,
+        env={},
+        platform="any",
+        needs_shell=False,
+        host_os=host_os,
+        from_commands=[],
+        evidence=pip.evidence,
+    )
+    return [*steps[:first_pip], venv, *steps[first_pip:]]
 
 
 def _manifests_win(

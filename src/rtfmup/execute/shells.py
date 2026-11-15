@@ -19,10 +19,12 @@ class CommandError(Exception):
     """The step cannot be turned into a command on this host."""
 
 
-def build_command(step: Step) -> list[str]:
+def build_command(step: Step, *, path: str | None = None) -> list[str]:
+    """`path` is the step's PATH. Windows' CreateProcess searches rtfmup's own PATH,
+    not the child's, so a program added by a runtime step or a venv is resolved here."""
     if step.argv:
         argv = list(step.argv)
-        resolved = shutil.which(argv[0])
+        resolved = shutil.which(argv[0], path=path)
         if resolved:
             argv[0] = resolved
         return argv

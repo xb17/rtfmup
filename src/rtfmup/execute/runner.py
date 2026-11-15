@@ -27,6 +27,55 @@ _POLL = 0.1
 # (uv warns and ignores a VIRTUAL_ENV that is not the project's). A step can
 # still set these explicitly.
 _OWN_PYTHON_ENV = ("VIRTUAL_ENV", "PYTHONHOME")
+VENV_BIN = "Scripts" if sys.platform == "win32" else "bin"
+
+
+def project_venv(repo_root: Path, cwd: str) -> Path | None:
+    """The project's own virtualenv for a step in `cwd`, if one exists.
+
+    Checked per step because an earlier step (`uv sync`, `uv venv`) creates it.
+    A `.venv` tracked by git is repo content, and repo content is untrusted: putting
+    its bin directory first on PATH would let the repo choose which `npm` runs.
+    """
+    for base in dict.fromkeys([(repo_root / cwd).resolve(), repo_root.resolve()]):
+        for name in (".venv", "venv"):  # uv's default, then the venv docs' usual name
+            venv = base / name
+            if (venv / "pyvenv.cfg").is_file() and not _tracked(repo_root, venv):
+                return venv
+    return None
+
+
+def _tracked(repo_root: Path, path: Path) -> bool:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-files", "--", str(path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return proc.returncode == 0 and bool(proc.stdout.strip())
+
+
+def step_environment(
+    repo_root: Path, step: Step, env: Mapping[str, str] | None
+) -> dict[str, str]:
+    """What a step's process sees: the host env minus rtfmup's own Python, the
+    project's venv activated, pip barred from installing outside a venv, then the
+    step's env and the caller's (secrets from `.env`, a refreshed PATH) on top."""
+    child = {k: v for k, v in os.environ.items() if k not in _OWN_PYTHON_ENV}
+    child.update(step.env)
+    child.update(env or {})
+    # A README `pip install` must never land in a global Python.
+    child.setdefault("PIP_REQUIRE_VIRTUALENV", "1")
+    venv = project_venv(repo_root, step.cwd)
+    if venv is not None and "VIRTUAL_ENV" not in child:
+        child["VIRTUAL_ENV"] = str(venv)
+        child["PATH"] = str(venv / VENV_BIN) + os.pathsep + child.get("PATH", "")
+    return child
+
 
 _LABEL = {
     "ok": "done",
@@ -189,8 +238,7 @@ def run_step(
     out = out or sys.stdout
     err = err or sys.stderr
     cancel = cancel or threading.Event()
-    inherited = {k: v for k, v in os.environ.items() if k not in _OWN_PYTHON_ENV}
-    child_env = {**inherited, **step.env, **(env or {})}
+    child_env = step_environment(repo_root, step, env)
     redact = Redactor(child_env)
 
     def say(msg: str) -> None:
@@ -213,7 +261,7 @@ def run_step(
         return result
 
     try:
-        argv = build_command(step)
+        argv = build_command(step, path=child_env.get("PATH"))
     except CommandError as exc:
         say(f"error: {exc}")
         return finish("error", None)

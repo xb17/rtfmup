@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/python:1": {}
   },
-  "postCreateCommand": "sudo apt install python3-venv libpq-dev && pip install -r requirements.txt && curl -fsSL https://example.com/install.sh | bash && python3 -m venv venv && source venv/bin/activate",
+  "postCreateCommand": "sudo apt install python3-venv libpq-dev && python3 -m venv venv && pip install -r requirements.txt && curl -fsSL https://example.com/install.sh | bash && source venv/bin/activate",
   "customizations": {
     "rtfmup": {
       "notes": [
