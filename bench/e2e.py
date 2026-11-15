@@ -53,6 +53,8 @@ def sandbox_env(scratch: Path) -> dict[str, str]:
     env["NPM_CONFIG_CACHE"] = str(scratch / "npm-cache")
     env["PATH"] = str(prefix) + os.pathsep + env.get("PATH", "")
     env["PYTHONUNBUFFERED"] = "1"
+    # A bare `pip install x` from a README must not land in the host's Python.
+    env["PIP_REQUIRE_VIRTUALENV"] = "1"
     return env
 
 
