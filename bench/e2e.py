@@ -1,25 +1,28 @@
 """End-to-end benchmark runner (PLAN T3.8). EXECUTES third-party code.
 
-    uv run python bench/e2e.py --only uptime-kuma --variant native --run "node server/server.js"
+    uv run python bench/e2e.py --only uptime-kuma      # on a GitHub runner (bench-e2e.yml)
+    uv run python bench/e2e.py --only flask --on-host  # here, knowingly
 
-One repo per invocation. Run it on purpose, never from CI.
+One repo per invocation. It runs where nothing it leaves behind matters: an
+ephemeral GitHub `windows-latest` runner (`.github/workflows/bench-e2e.yml`), and
+refuses anywhere else unless `--on-host` is passed. A README step can start a
+daemon, register a service, or write to the home directory (the pm2 run on
+2026-11-14 did all three), and no amount of environment redirection stops that.
 
-What it does:
-  1. fetches the pinned commit (same cache as run.py) and copies it to a fresh
-     scratch directory, so the cached checkout is never modified;
-  2. runs `rtfmup up <copy> --yes` with stdin closed. `--yes` approves low and
-     medium risk steps; a high-risk step needs a typed `yes`, and EOF counts as
-     a refusal, so those are declined by construction;
-  3. points npm's global prefix and cache at the scratch directory, so a README
-     that says `npm install -g x` installs into the sandbox, not onto the host;
-  4. as soon as `Up:` appears, sends Ctrl+C-equivalent (CTRL_BREAK on Windows)
-     and records success. Otherwise it records the failure after --timeout.
+What one run does:
+  1. fetches the pinned commit (same cache as run.py) and copies it into a fresh
+     scratch folder named after the repo, so the cached checkout is never modified;
+  2. runs `rtfmup up <copy> --yes` with the repo's answers from corpus.toml
+     (`e2e_variant`, `e2e_run`), as a user answering rtfmup's questions would.
+     stdin is closed: `--yes` approves low and medium risk, high-risk steps need
+     a typed `yes`, and EOF is a refusal, so high-risk steps are declined;
+  3. success is the PLAN §4.2 definition: the health check passes (`Up:`), or, for
+     a CLI with no port, `up` finishes and the repo's `e2e_done` command succeeds;
+  4. writes bench/results/e2e-<date>-<time>-<repo>.md (every attempt is kept) and
+     the full output next to it in the scratch folder.
 
-It does NOT sandbox everything: pip/uv/cargo/winget/scoop installs, writes
-outside the repo, and anything else a README step does are still real. That is
-why each run is a stop point. Windows only until M5.
-
-Results go to bench/results/e2e-<date>-<repo>.md.
+rtfmup's own dev venv is taken off PATH first: users run rtfmup from uvx or pipx,
+so a repo's steps must not find rtfmup's interpreter or tools. Windows only until M5.
 """
 
 from __future__ import annotations
@@ -27,13 +30,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import shutil
 import signal
 import subprocess
 import sys
 import threading
 import time
-from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -41,20 +44,32 @@ sys.path.insert(0, str(Path(__file__).parent))
 from fetch import bench_cache, ensure_checkout, load_corpus
 
 HERE = Path(__file__).parent
-TAIL_LINES = 60
+TAIL_LINES = 80
+ON_CI = os.environ.get("GITHUB_ACTIONS") == "true"
 
 
-def sandbox_env(scratch: Path) -> dict[str, str]:
-    """Environment that keeps npm's global installs and cache inside `scratch`."""
-    prefix = scratch / "npm-global"
-    prefix.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ)
-    env["NPM_CONFIG_PREFIX"] = str(prefix)
-    env["NPM_CONFIG_CACHE"] = str(scratch / "npm-cache")
-    env["PATH"] = str(prefix) + os.pathsep + env.get("PATH", "")
+def step_env(scratch: Path, *, on_host: bool) -> dict[str, str]:
+    """The environment rtfmup (and so every repo step) runs with."""
+    env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV",)}
+    own_bin = Path(sys.executable).parent.resolve()
+    keep = []
+    for entry in env.get("PATH", "").split(os.pathsep):
+        try:
+            if entry and Path(entry).resolve() == own_bin:
+                continue
+        except OSError:
+            pass
+        keep.append(entry)
+    env["PATH"] = os.pathsep.join(keep)
     env["PYTHONUNBUFFERED"] = "1"
-    # A bare `pip install x` from a README must not land in the host's Python.
-    env["PIP_REQUIRE_VIRTUALENV"] = "1"
+    if on_host:
+        # Damage limitation only. It keeps `npm install -g` off the host PATH and
+        # nothing else: daemons, services and home-directory state still escape.
+        prefix = scratch / "npm-global"
+        prefix.mkdir(parents=True, exist_ok=True)
+        env["NPM_CONFIG_PREFIX"] = str(prefix)
+        env["NPM_CONFIG_CACHE"] = str(scratch / "npm-cache")
+        env["PATH"] = str(prefix) + os.pathsep + env["PATH"]
     return env
 
 
@@ -75,11 +90,37 @@ def stop_tree(proc: subprocess.Popen[str]) -> None:
 
 
 def read_state(repo: Path) -> dict:
-    path = repo / ".rtfmup" / "state.json"
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads((repo / ".rtfmup" / "state.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
+
+
+def done_check(argv: list[str], env: dict[str, str]) -> tuple[bool, str]:
+    exe = shutil.which(argv[0], path=env.get("PATH"))
+    if exe is None:
+        return False, f"`{argv[0]}` is not on PATH"
+    proc = subprocess.run(
+        [exe, *argv[1:]],
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=60,
+        check=False,
+    )
+    first = (proc.stdout or proc.stderr).strip().splitlines()[:1]
+    return proc.returncode == 0, f"exit {proc.returncode}: {first[0] if first else ''}"
+
+
+def plan_section(lines: list[str]) -> str:
+    """The plan as rtfmup printed it, so the report shows what was attempted."""
+    start = next((i for i, ln in enumerate(lines) if "rtfmup plan (" in ln), None)
+    end = next((i for i, ln in enumerate(lines) if "--yes: approved" in ln), None)
+    if start is None:
+        return "(no plan printed)\n"
+    return "".join(lines[start : (end + 1) if end is not None else start + 60])
 
 
 def run_one(args: argparse.Namespace) -> int:
@@ -98,25 +139,34 @@ def run_one(args: argparse.Namespace) -> int:
     if sys.platform != "win32":
         print("e2e bench runs on Windows only until M5", file=sys.stderr)
         return 2
+    if not ON_CI and not args.on_host:
+        print(
+            "refusing: this executes third-party setup steps. Run it on an ephemeral\n"
+            "runner (gh workflow run bench-e2e.yml), or pass --on-host to accept that\n"
+            "daemons, services and home-directory writes will land on this machine.",
+            file=sys.stderr,
+        )
+        return 2
 
     pinned = ensure_checkout(repo)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
+    stamp = time.strftime("%Y-%m-%d-%H%M%S")
     scratch = bench_cache() / "e2e" / f"{args.only}-{stamp}"
     work = scratch / args.only  # a folder named after the repo, like a real clone
     shutil.copytree(pinned, work, ignore=shutil.ignore_patterns(".rtfmup"))
+    env = step_env(scratch, on_host=not ON_CI)
     print(
         f"\n== e2e: {args.only} @ {repo['sha'][:10]}\n   work dir: {work}\n", flush=True
     )
 
+    variant = args.variant or repo.get("e2e_variant")
+    run = args.run or repo.get("e2e_run")
     cmd = [sys.executable, "-m", "rtfmup.cli", "up", str(work), "--yes"]
     cmd += ["--health-timeout", str(args.health_timeout)]
-    if args.variant:
-        cmd += ["--variant", args.variant]
-    if args.run:
-        cmd += ["--run", args.run]
-    if args.component:
-        cmd += ["--component", args.component]
-    print("   command:", " ".join(cmd), "\n", flush=True)
+    if variant:
+        cmd += ["--variant", variant]
+    if run:
+        cmd += ["--run", run]
+    print("   command:", subprocess.list2cmdline(cmd), "\n", flush=True)
 
     started = time.monotonic()
     proc = subprocess.Popen(
@@ -127,7 +177,7 @@ def run_one(args: argparse.Namespace) -> int:
         text=True,
         encoding="utf-8",
         errors="replace",
-        env=sandbox_env(scratch),
+        env=env,
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
     )
     lines: list[str] = []
@@ -157,46 +207,70 @@ def run_one(args: argparse.Namespace) -> int:
     reader.join(timeout=10)
     seconds = time.monotonic() - started
 
-    state = read_state(work)
-    steps = state.get("steps", {})
-    success = bool(up_line)
+    done_cmd = repo.get("e2e_done")
+    done_ok, done_note = False, "-"
+    if done_cmd and proc.returncode == 0 and not timed_out:
+        done_ok, done_note = done_check(done_cmd, env)
+    elif done_cmd:
+        done_note = "not checked: `up` did not finish cleanly"
+    success = bool(up_line) or done_ok
     verdict = "SUCCESS" if success else ("TIMEOUT" if timed_out else "FAILED")
     print(f"\n== {verdict}: {args.only} in {seconds:.0f}s (exit {proc.returncode})")
 
-    out = HERE / "results" / f"e2e-{date.today().isoformat()}-{args.only}.md"
-    out.parent.mkdir(exist_ok=True)
-    tail = "".join(lines[-TAIL_LINES:])
+    state = read_state(work)
     step_rows = "\n".join(
-        f"| {sid} | {info.get('status', '?')} | {info.get('exit_code', '')} |"
-        for sid, info in steps.items()
+        f"| {sid} | {info.get('title', '')[:70]} | {info.get('status', '?')} "
+        f"| {info.get('exit_code', '')} |"
+        for sid, info in state.get("steps", {}).items()
     )
-    out.write_text(
-        f"# e2e: {args.only}\n\n"
+    where = (
+        f"GitHub {os.environ.get('ImageOS', 'windows')} runner"
+        if ON_CI
+        else "this machine (--on-host)"
+    )
+    report = (
+        f"# e2e: {args.only} ({stamp})\n\n"
         f"- result: **{verdict}**\n"
         f"- commit: `{repo['sha']}`\n"
-        f"- host: windows, python {sys.version.split()[0]}\n"
-        f"- duration: {seconds:.0f}s, rtfmup exit code {proc.returncode}\n"
-        f"- up line: {up_line[0] if up_line else 'never reached'}\n"
-        f"- answers given: variant={args.variant or '-'} run={args.run or '-'} "
-        f"component={args.component or '-'}\n"
-        f"- sandbox: npm global prefix and cache inside the scratch dir; stdin closed "
-        f"(high-risk steps declined)\n\n"
+        f"- where: {where}, {platform.platform()}, python {sys.version.split()[0]}\n"
+        f"- duration: {seconds:.0f}s, rtfmup exit code {proc.returncode}, "
+        f"outcome `{state.get('outcome', '?')}`\n"
+        f"- health: {up_line[0] if up_line else 'never reached'}\n"
+        f"- done check: {' '.join(done_cmd) if done_cmd else '-'} -> {done_note}\n"
+        f"- answers: variant={variant or '-'} run={run or '-'}; stdin closed, so "
+        f"high-risk steps are declined\n\n"
+        f"## Plan\n\n```text\n{plan_section(lines)}```\n\n"
         f"## Steps (`.rtfmup/state.json`)\n\n"
-        f"| step | status | exit |\n|---|---|---|\n{step_rows or '| (none) | | |'}\n\n"
-        f"## Last {TAIL_LINES} lines of output\n\n```text\n{tail}```\n",
-        encoding="utf-8",
+        f"| step | title | status | exit |\n|---|---|---|---|\n"
+        f"{step_rows or '| (none) | | | |'}\n\n"
+        f"## Last {TAIL_LINES} lines of output\n\n```text\n"
+        f"{''.join(lines[-TAIL_LINES:])}```\n"
     )
-    print(f"   report: {out}\n   scratch: {scratch} (delete when done)")
+    out = HERE / "results" / f"e2e-{stamp}-{args.only}.md"
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(report, encoding="utf-8")
+    (scratch / "output.log").write_text("".join(lines), encoding="utf-8")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write(report + "\n")
+    print(f"   report: {out}\n   full log: {scratch / 'output.log'}")
     return 0 if success else 1
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--only", required=True, help="corpus name (one repo per run)")
-    ap.add_argument("--variant")
-    ap.add_argument("--run", help="answer for rtfmup's --run question")
-    ap.add_argument("--component")
-    ap.add_argument("--timeout", type=int, default=900, help="whole-run limit, seconds")
+    ap.add_argument("--variant", help="override corpus.toml e2e_variant")
+    ap.add_argument("--run", help="override corpus.toml e2e_run")
+    ap.add_argument(
+        "--on-host",
+        action="store_true",
+        help="run on this machine anyway (not an ephemeral runner)",
+    )
+    ap.add_argument(
+        "--timeout", type=int, default=1200, help="whole-run limit, seconds"
+    )
     ap.add_argument("--health-timeout", type=float, default=120)
     ap.add_argument(
         "--hold", type=float, default=2, help="seconds to stay up before stopping"

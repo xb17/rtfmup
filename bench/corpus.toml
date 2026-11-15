@@ -3,6 +3,9 @@
 # sha: pinned at annotation time (2026-11-07). The runner fetches exactly this commit,
 #      so results are reproducible even as the upstream READMEs change.
 # e2e: whether M3/M5 end-to-end runs are attempted. Analysis metrics run on all 10.
+# e2e_variant / e2e_run: the answers bench/e2e.py gives rtfmup's questions (as a user would).
+# e2e_done: for CLIs with no port, a command that proves the tool is installed.
+# fetch_tags: the README needs release tags (e.g. `git checkout <tag>`).
 # held_out: frozen set for honest reporting (repos 1, 4, 8). Don't tune rules on these,
 #      and only look at them at milestone ends.
 
@@ -30,6 +33,7 @@ sha = "49943b5a94413a530761350f04e896f76e8d620e"
 ecosystem = "python"
 why = "prose-heavy tutorial-style README"
 e2e = true
+e2e_run = "flask run"
 
 [[repo]]
 name = "ripgrep"
@@ -38,6 +42,7 @@ sha = "91f5d22ef48bde459d90a8c7dbeab416e97d0f2b"
 ecosystem = "rust"
 why = "Rust CLI"
 e2e = true
+e2e_done = ["rg", "--version"]  # a CLI: no port, so a done check
 held_out = true
 
 [[repo]]
@@ -47,6 +52,8 @@ sha = "96028e2a54023a8ff8240e985ae9c8e4f25c0089"
 ecosystem = "go"
 why = "Go CLI, many install paths (variant ambiguity)"
 e2e = true
+e2e_run = "go run ."
+e2e_done = ["fzf", "--version"]  # a CLI: no port, so a done check
 
 [[repo]]
 name = "express"
@@ -63,6 +70,8 @@ sha = "c4f983a457e4ccb18e0836890b0dd80f11c2739a"
 ecosystem = "node"
 why = "Node app, port health check, Docker alternative"
 e2e = true
+e2e_variant = "native"
+e2e_run = "node server/server.js"
 fetch_tags = true  # `npm run setup` runs `git checkout <release tag>`
 
 [[repo]]
