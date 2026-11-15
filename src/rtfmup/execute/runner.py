@@ -156,7 +156,13 @@ def _stop_tree(proc: subprocess.Popen, job: _Job) -> None:
 def _pump(src: IO[str], sink: IO[str], lock: threading.Lock) -> None:
     for line in src:
         with lock:
-            sink.write(line)
+            try:
+                sink.write(line)
+            except UnicodeEncodeError:
+                # A console codepage (cp1252) can't show everything a tool prints.
+                # Degrade the characters, never the stream.
+                enc = getattr(sink, "encoding", None) or "ascii"
+                sink.write(line.encode(enc, "replace").decode(enc))
             sink.flush()
     src.close()
 

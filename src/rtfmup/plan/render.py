@@ -18,6 +18,7 @@ GAP_TITLES = {
     "external_account": "Accounts and keys",
     "service": "Services",
     "unsupported_platform": "Steps for another OS (listed, not run)",
+    "working_directory": "Directory not found",
     "unresolved": "Unresolved",
 }
 

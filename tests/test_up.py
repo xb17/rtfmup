@@ -306,3 +306,12 @@ def test_runtime_step_refreshes_path_for_later_steps(tmp_path, monkeypatch):
     result, _, _ = go(make_plan(steps), tmp_path, assume_yes=True)
     assert result.outcome == "stopped"
     assert seen.read_text().startswith(new_dir)
+
+
+def test_working_directory_gap_blocks_too(tmp_path):
+    gap = Gap(kind="working_directory", message="cd nowhere: not in this repo")
+    marker = tmp_path / "ran"
+    step = py("a", "setup", touch(marker))
+    result, _, err = go(make_plan([step], gaps=[gap]), tmp_path, assume_yes=True)
+    assert result.outcome == "blocked" and not marker.exists()
+    assert "cd nowhere" in err

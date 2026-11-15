@@ -355,3 +355,33 @@ def test_run_command_from_a_test_section_ranks_last(tmp_path):
     pkg = '{"name": "w", "scripts": {"start": "x", "e2e-serve": "y"}}'
     root = _repo(tmp_path, "w", {"package.json": pkg, "README.md": readme})
     assert _texts(_build(root))[-1] == "npm start"
+
+
+def test_cd_into_a_directory_that_is_not_there_is_a_working_directory_gap(tmp_path):
+    root = _repo(
+        tmp_path,
+        "w",
+        {
+            "package.json": PKG,
+            "README.md": _readme("cd nowhere" + chr(10) + "npm install"),
+        },
+    )
+    gaps = [g for g in _build(root).gaps if g.kind == "working_directory"]
+    assert len(gaps) == 1 and "nowhere" in gaps[0].message
+
+
+def test_cd_into_the_clone_we_are_already_in_is_not_a_gap(tmp_path):
+    root = _repo(
+        tmp_path,
+        "w",
+        {
+            "package.json": PKG,
+            "README.md": _readme(
+                chr(10).join(
+                    ["git clone https://example.com/o/w.git", "cd w", "npm install"]
+                )
+            ),
+        },
+    )
+    plan = _build(root)
+    assert not [g for g in plan.gaps if g.kind == "working_directory"]

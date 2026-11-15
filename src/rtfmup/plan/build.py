@@ -341,12 +341,13 @@ def _walk(
             if new is None:
                 out.gaps.append(
                     Gap(
-                        kind="unresolved",
+                        kind="working_directory",
                         message=(
                             f"README runs `{text}` ({_where(c)}), which is not a "
-                            "directory in this repo. The commands after it run from "
-                            f"`{st['cwd']}` instead."
+                            "directory in this repo, so the commands after it have "
+                            "no place to run."
                         ),
+                        fix="Create that directory or pass the right target, then run again.",
                     )
                 )
             else:
@@ -359,8 +360,9 @@ def _walk(
             if new is None:
                 out.gaps.append(
                     Gap(
-                        kind="unresolved",
+                        kind="working_directory",
                         message=f"README runs `{text}` ({_where(c)}); its `cd` target is not in this repo.",
+                        fix="Create that directory or pass the right target, then run again.",
                     )
                 )
                 continue

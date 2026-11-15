@@ -19,6 +19,7 @@ GapKind = Literal[
     "external_account",
     "unsupported_platform",
     "service",
+    "working_directory",
     "unresolved",
 ]
 

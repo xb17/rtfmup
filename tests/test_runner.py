@@ -214,3 +214,22 @@ def test_own_virtualenv_is_not_inherited(tmp_path, monkeypatch):
     assert out.strip() == "unset"
     _, out, _ = run(py(code, env={"VIRTUAL_ENV": "mine"}), tmp_path)
     assert out.strip() == "mine"
+
+
+class _Latin1Sink(io.StringIO):
+    """A console that cannot encode everything, like cp1252 on Windows."""
+
+    def write(self, s):
+        s.encode("cp1252")
+        return super().write(s)
+
+
+def test_output_the_console_cannot_encode_does_not_kill_the_stream(tmp_path):
+    code = (
+        "import sys; sys.stdout.buffer.write("
+        "'ok '.encode() + bytes([0xE2, 0x9C, 0x93]) + ' done'.encode() + bytes([10]))"
+    )
+    out, err = _Latin1Sink(), io.StringIO()
+    result = run_step(py(code), tmp_path, out=out, err=err)
+    assert result.status == "ok"
+    assert "done" in out.getvalue()

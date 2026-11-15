@@ -97,6 +97,7 @@ _KIND_ORDER = (
     "external_account",
     "service",
     "unsupported_platform",
+    "working_directory",
     "unresolved",
 )
 

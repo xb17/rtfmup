@@ -29,9 +29,10 @@ from rtfmup.plan.store import write_state_file
 STATE_FILE = "state.json"
 RUN_LOG = "run.log"
 
-# Without these there is nothing to run the project with. Other gaps are shown
-# and confirmed over, not blocked on.
-BLOCKING_GAPS = ("missing_runtime", "runtime_version")
+# Without a runtime there is nothing to run the project with, and a `cd` we cannot
+# resolve would run later steps in the wrong place. Other gaps are shown and
+# confirmed over, not blocked on.
+BLOCKING_GAPS = ("missing_runtime", "runtime_version", "working_directory")
 
 StepState = Literal["pending", "ok", "failed", "skipped", "cancelled", "not_run"]
 Outcome = Literal["up", "stopped", "declined", "blocked", "failed", "unsupported"]
