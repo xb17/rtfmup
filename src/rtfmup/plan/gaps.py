@@ -59,6 +59,9 @@ OWN_TOOL = {
     "composer": "composer",
     "docker": "docker",
     "git": "git",
+    "winget": "winget",
+    "scoop": "scoop",
+    "choco": "choco",
 }
 
 # Official landing pages only (the `manual` provider). Checked 2026-11-07.
@@ -77,6 +80,10 @@ MANUAL_FIX = {
     "composer": "Install Composer: https://getcomposer.org/download/",
     "docker": "Install Docker: https://docs.docker.com/get-started/get-docker/",
     "git": "Install Git: https://git-scm.com/downloads",
+    # Checked 2026-11-16.
+    "winget": "Install App Installer (winget): https://learn.microsoft.com/windows/package-manager/winget/",
+    "scoop": "Install Scoop: https://scoop.sh",
+    "choco": "Install Chocolatey: https://chocolatey.org/install",
 }
 DISPLAY = {
     "python": "Python",

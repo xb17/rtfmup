@@ -686,7 +686,9 @@ def build_plan(
                     evidence=d.evidence,
                 )
             )
-    steps += [from_cand("install", c) for c in readme_installs]
+    steps += [
+        from_cand("install", c) for c in _one_system_manager(readme_installs, host)
+    ]
 
     # env: one step from the template; the README's `cp .env.example .env` folds into it
     template = next(
@@ -866,6 +868,65 @@ def _manifests_win(
             continue
         keep.append(c)
     return keep
+
+
+# System package managers: a README section that lists several of them offers
+# alternatives ("If you're a Scoop user ..."), not steps to run in sequence.
+_SYSTEM_PMS = frozenset(
+    {
+        "winget", "scoop", "choco",
+        "brew", "port",
+        "apt", "apt-get", "dnf", "yum", "zypper", "pacman", "emerge", "apk",
+        "xbps-install", "pkg", "pkgin", "pkgman", "pkg_add",
+        "nix-env", "flox", "guix", "snap", "flatpak",
+    }
+)  # fmt: skip
+_SYSTEM_PM_ORDER = {"windows": ("scoop", "winget", "choco")}  # D12, as WINDOWS_ORDER
+
+
+def _system_pm(text: str) -> str | None:
+    words = text.split()
+    while words and words[0] in ("sudo", "doas"):
+        words = words[1:]
+    return words[0].lower() if words and words[0].lower() in _SYSTEM_PMS else None
+
+
+def _one_system_manager(installs: list[_Cand], host: HostProfile) -> list[_Cand]:
+    """Keep one system package manager per README section.
+
+    Within a section, installs that use different system package managers are
+    alternatives. The one kept is the first that fits this host: its OS, then
+    installed before unknown before missing, then D12 order. All of its commands
+    stay; the other managers' commands (other OSes included) are dropped. A section
+    with no manager for this host is left alone, so its steps stay gaps.
+    """
+    # section -> {manager: does any of its commands run on this OS}, in README order
+    by_section: dict[tuple[str, ...], dict[str, bool]] = {}
+    for c in installs:
+        if (pm := _system_pm(c.text)) is not None:
+            pms = by_section.setdefault(tuple(c.cmd.section_path), {})
+            pms[pm] = pms.get(pm, False) or _platform_ok(c.cmd.platform, host.os)
+
+    order = _SYSTEM_PM_ORDER.get(host.os, ())
+
+    def rank(pm: str) -> tuple[int, int]:
+        info = host.tools.get(pm)
+        presence = 1 if info is None else (0 if info.found else 2)  # None: not probed
+        return presence, order.index(pm) if pm in order else len(order)
+
+    chosen: dict[tuple[str, ...], str] = {}
+    for section, pms in by_section.items():
+        fits = [pm for pm, ok in pms.items() if ok]
+        if len(pms) > 1 and fits:
+            chosen[section] = min(fits, key=rank)
+
+    return [
+        c
+        for c in installs
+        if (pm := _system_pm(c.text)) is None
+        or (section := tuple(c.cmd.section_path)) not in chosen
+        or chosen[section] == pm
+    ]
 
 
 def _missing_requirements(root: Path, c: _Cand) -> str | None:
