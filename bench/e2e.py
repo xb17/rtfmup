@@ -114,6 +114,18 @@ def done_check(argv: list[str], env: dict[str, str]) -> tuple[bool, str]:
     return proc.returncode == 0, f"exit {proc.returncode}: {first[0] if first else ''}"
 
 
+def publish_report_path(report: Path) -> None:
+    """On Actions, name this run's report as the step output `report`.
+
+    The upload step takes exactly that file; a glob would also match the reports
+    earlier runs committed to `bench/results/`.
+    """
+    target = os.environ.get("GITHUB_OUTPUT")
+    if target:
+        with open(target, "a", encoding="utf-8") as fh:
+            fh.write(f"report={report}\n")
+
+
 def plan_section(lines: list[str]) -> str:
     """The plan as rtfmup printed it, so the report shows what was attempted."""
     start = next((i for i, ln in enumerate(lines) if "rtfmup plan (" in ln), None)
@@ -249,6 +261,7 @@ def run_one(args: argparse.Namespace) -> int:
     out = HERE / "results" / f"e2e-{stamp}-{args.only}.md"
     out.parent.mkdir(exist_ok=True)
     out.write_text(report, encoding="utf-8")
+    publish_report_path(out)
     (scratch / "output.log").write_text("".join(lines), encoding="utf-8")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

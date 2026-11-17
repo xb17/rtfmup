@@ -62,6 +62,7 @@ jobs:
       - name: Host probe, warm
         run: uv run rtfmup doctor
       - name: e2e ${{ matrix.repo }}
+        id: e2e
         env:
           REPO: ${{ matrix.repo }}
         run: uv run python bench/e2e.py --only "$env:REPO"
@@ -70,6 +71,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-${{ matrix.repo }}
-          # Only this run's report: the timestamped name, not committed older ones.
-          path: bench/results/e2e-????-??-??-??????-${{ matrix.repo }}.md
+          # Only this run's report, by the path e2e.py wrote: a glob would also match
+          # the reports earlier runs committed to bench/results/.
+          path: ${{ steps.e2e.outputs.report }}
           if-no-files-found: warn

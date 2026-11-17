@@ -398,3 +398,22 @@ def test_gold_leaves_out_cloning_the_repo_itself():
         ("cd elsewhere", "setup"),
     ]
     assert len(gold_items(gold, None)) == 6  # without a URL nothing is dropped
+
+
+def test_e2e_hands_its_report_path_to_the_workflow(tmp_path, monkeypatch):
+    """The upload step must take this run's report only, not committed older ones."""
+    from e2e import publish_report_path
+
+    out = tmp_path / "gh_output"
+    out.write_text("earlier=1\n", encoding="utf-8")
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
+    report = tmp_path / "results" / "e2e-2026-11-16-213134-ripgrep.md"
+    publish_report_path(report)
+    assert out.read_text(encoding="utf-8") == f"earlier=1\nreport={report}\n"
+
+
+def test_e2e_report_path_is_a_no_op_off_ci(tmp_path, monkeypatch):
+    from e2e import publish_report_path
+
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    publish_report_path(tmp_path / "r.md")  # nothing to write to, nothing raised
