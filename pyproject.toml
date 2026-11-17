@@ -1,6 +1,6 @@
 [project]
 name = "rtfmup"
-version = "0.2.0"
+version = "0.3.0"
 description = "Set up any repo from its README."
 readme = "README.md"
 license = "Apache-2.0"
