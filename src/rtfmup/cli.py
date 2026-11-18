@@ -115,6 +115,13 @@ def up(
     health_timeout: Annotated[
         float, typer.Option(help="Seconds to wait for the run step's port.")
     ] = DEFAULT_HEALTH_TIMEOUT,
+    resume: Annotated[
+        bool,
+        typer.Option(
+            "--resume",
+            help="Continue the last run: skip steps that finished, if the plan is unchanged.",
+        ),
+    ] = False,
 ) -> None:
     """Analyze TARGET, show the plan, confirm, set it up, and run it."""
     try:
@@ -144,6 +151,7 @@ def up(
         assume_yes=yes,
         interactive=_is_interactive(),
         health_timeout=health_timeout,
+        resume=resume,
     )
     if outcome.outcome in ("up", "stopped"):
         ui.done(outcome.message or "Stopped.")

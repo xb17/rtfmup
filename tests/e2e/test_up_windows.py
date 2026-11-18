@@ -95,3 +95,30 @@ def test_up_prints_a_diagnosis_for_a_failing_step(tmp_path):
     assert proc.returncode == 1, err
     assert err.index("FAILED") < err.index("Diagnosis:")
     assert "Build Tools" in err and "fix:" in err
+
+
+def test_up_resume_continues_after_the_failed_step(tmp_path):
+    """T4.2 accept: step 1 shows as already done and the second run exits 0."""
+    if sys.platform != "win32":
+        pytest.skip("Windows only until M5")
+    repo = tmp_path / "resume"
+    shutil.copytree(
+        FIXTURE.parent / "resume", repo, ignore=shutil.ignore_patterns(".rtfmup")
+    )
+
+    def up(*extra: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, "-m", "rtfmup.cli", "up", str(repo), "--yes", *extra],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+            check=False,
+        )
+
+    assert up().returncode == 1
+    (repo / ".ok").write_text("")
+    done = up("--resume")
+    assert done.returncode == 0, done.stderr
+    assert "already done" in done.stderr

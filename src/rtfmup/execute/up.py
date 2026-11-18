@@ -7,6 +7,7 @@ one by one, and every step's outcome lands in `.rtfmup/state.json`.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -36,7 +37,9 @@ RUN_LOG = "run.log"
 BLOCKING_GAPS = ("missing_runtime", "runtime_version", "working_directory")
 
 StepState = Literal["pending", "ok", "failed", "skipped", "cancelled", "not_run"]
-Outcome = Literal["up", "stopped", "declined", "blocked", "failed", "unsupported"]
+Outcome = Literal[
+    "up", "stopped", "declined", "blocked", "failed", "unsupported", "cannot_resume"
+]
 
 
 @dataclass
@@ -54,7 +57,22 @@ class UpResult:
             "blocked": 1,
             "failed": 1,
             "unsupported": 2,
+            "cannot_resume": 2,
         }[self.outcome]
+
+
+def plan_hash(plan: Plan) -> str:
+    """sha256 of the plan's JSON (T4.2). It covers `analysis_ref`, the host, variant,
+    component and every step, so any of them changing invalidates a resume."""
+    return hashlib.sha256(plan.model_dump_json().encode("utf-8")).hexdigest()
+
+
+def load_state(root: Path) -> dict | None:
+    try:
+        data = json.loads((root / CACHE_DIR / STATE_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def blocking_gaps(plan: Plan) -> list[Gap]:
@@ -64,15 +82,20 @@ def blocking_gaps(plan: Plan) -> list[Gap]:
 class _State:
     """`.rtfmup/state.json`: per-step status, rewritten after every change."""
 
-    def __init__(self, root: Path, plan: Plan) -> None:
+    def __init__(
+        self, root: Path, plan: Plan, done: dict[str, dict] | None = None
+    ) -> None:
         self.root = root
+        done = done or {}
         self.data: dict = {
             "schema_version": "1",
             "analysis_ref": plan.analysis_ref,
+            "plan_hash": plan_hash(plan),
             "started": _now(),
             "outcome": None,
             "steps": {
-                s.id: {"title": s.title, "kind": s.kind, "status": "pending"}
+                s.id: done.get(s.id)
+                or {"title": s.title, "kind": s.kind, "status": "pending"}
                 for s in plan.steps
             },
         }
@@ -137,6 +160,7 @@ def execute_plan(
     out: IO[str] | None = None,
     err: IO[str] | None = None,
     cancel: threading.Event | None = None,
+    resume: bool = False,
 ) -> UpResult:
     out = out or sys.stdout
     err = err or sys.stderr
@@ -147,6 +171,26 @@ def execute_plan(
             "unsupported",
             f"`up` is not yet supported on this OS ({plan.host_os}).",
         )
+    done_before: dict[str, dict] = {}
+    if resume:
+        prior = load_state(root)
+        if prior is None:
+            return UpResult(
+                "cannot_resume",
+                "there is no earlier run to resume: run `rtfmup up` without --resume.",
+            )
+        if prior.get("plan_hash") != plan_hash(plan):
+            return UpResult(
+                "cannot_resume",
+                "the plan changed since the last run: run `rtfmup up` without "
+                "--resume.",
+            )
+        # The run step and anything after it always run again.
+        done_before = {
+            sid: v
+            for sid, v in prior.get("steps", {}).items()
+            if v.get("status") == "ok" and v.get("kind") not in ("run", "healthcheck")
+        }
     stuck = blocking_gaps(plan)
     if stuck:
         for g in stuck:
@@ -159,8 +203,16 @@ def execute_plan(
 
     # Steps we execute here. Env is interactive, health is the run step's job,
     # and manual or other-OS steps are only listed.
-    to_run = [s for s in plan.steps if is_runnable(s) and s.kind != "healthcheck"]
-    env_steps = [s for s in plan.steps if s.kind == "env" and s.platform_ok]
+    to_run = [
+        s
+        for s in plan.steps
+        if is_runnable(s) and s.kind != "healthcheck" and s.id not in done_before
+    ]
+    env_steps = [
+        s
+        for s in plan.steps
+        if s.kind == "env" and s.platform_ok and s.id not in done_before
+    ]
     listed_only = [
         s
         for s in plan.steps
@@ -171,15 +223,17 @@ def execute_plan(
 
     confirmer = confirmer or Confirmer(assume_yes=assume_yes, out=err)
     if not to_run and not env_steps:
+        if done_before:
+            return UpResult("stopped", "Every step in the plan is already done.")
         return UpResult("blocked", "Nothing to run.")
     if not confirmer.confirm_batch(to_run):
         return UpResult("declined", "Nothing was run.")
 
-    state = _State(root, plan)
+    state = _State(root, plan, done_before)
     log = RunLog(root / CACHE_DIR / RUN_LOG)
     prompter = prompter or Prompter(interactive=interactive and not assume_yes, out=err)
     cancel = cancel or threading.Event()
-    total = len(to_run) + len(env_steps)
+    total = len(to_run) + len(env_steps) + len(done_before)
     child_env: dict[str, str] = {}  # grows when a runtime step changes PATH
 
     def done(outcome: Outcome, message: str = "") -> UpResult:
@@ -189,6 +243,10 @@ def execute_plan(
     index = 0
     for step in plan.steps:
         if step.kind == "healthcheck":
+            continue
+        if step.id in done_before:
+            index += 1
+            _say(err, f"[{index}/{total}] {step.kind} · {step.title}: already done")
             continue
         if step.kind == "env" and step.platform_ok:
             index += 1

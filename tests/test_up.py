@@ -323,3 +323,82 @@ def test_a_declined_run_step_is_not_reported_as_success(tmp_path):
     run = py("r", "run", "pass", long_running=True).model_copy(update={"risk": "high"})
     result, _, _ = go(make_plan([setup, run]), tmp_path, assume_yes=True)
     assert result.outcome == "declined" and result.exit_code != 0
+
+
+# --- T4.2 resume -------------------------------------------------------------------
+
+
+def _resume_plan(root: Path, *, second_code: str | None = None) -> Plan:
+    ok = root / ".ok"
+    return make_plan(
+        [
+            py("a", "install", touch(root / "a.done")),
+            py(
+                "b",
+                "install",
+                second_code
+                or f"import os, sys; sys.exit(0 if os.path.exists({str(ok)!r}) else 1)",
+            ),
+            py("c", "setup", touch(root / "c.done")),
+        ]
+    )
+
+
+def test_resume_skips_finished_steps_and_runs_the_rest(tmp_path):
+    plan = _resume_plan(tmp_path)
+    first, _o, _e = go(plan, tmp_path, assume_yes=True)
+    assert first.exit_code == 1
+    assert state(tmp_path)["plan_hash"]
+    (tmp_path / "a.done").unlink()  # prove step a is not run again
+    (tmp_path / ".ok").write_text("")
+    second, _o, err = go(plan, tmp_path, assume_yes=True, resume=True)
+    assert second.exit_code == 0, err
+    assert "already done" in err
+    assert not (tmp_path / "a.done").exists()
+    assert (tmp_path / "c.done").exists()
+    assert state(tmp_path)["steps"]["a"]["status"] == "ok"
+    assert state(tmp_path)["steps"]["b"]["status"] == "ok"
+
+
+def test_resume_refuses_when_the_plan_changed(tmp_path):
+    first, _o, _e = go(_resume_plan(tmp_path), tmp_path, assume_yes=True)
+    assert first.exit_code == 1
+    changed = _resume_plan(tmp_path, second_code="raise SystemExit(1)")
+    result, _o, _e = go(changed, tmp_path, assume_yes=True, resume=True)
+    assert result.exit_code == 2
+    assert "the plan changed since the last run" in result.message
+    assert "without --resume" in result.message
+    assert not (tmp_path / "c.done").exists()
+
+
+def test_resume_without_a_state_file_runs_nothing(tmp_path):
+    result, _o, _e = go(_resume_plan(tmp_path), tmp_path, assume_yes=True, resume=True)
+    assert result.exit_code == 2
+    assert "no earlier run" in result.message
+    assert not (tmp_path / "a.done").exists()
+
+
+def test_resume_when_everything_is_done_succeeds(tmp_path):
+    (tmp_path / ".ok").write_text("")
+    plan = _resume_plan(tmp_path)
+    assert go(plan, tmp_path, assume_yes=True)[0].exit_code == 0
+    result, _o, _e = go(plan, tmp_path, assume_yes=True, resume=True)
+    assert result.exit_code == 0 and "already done" in result.message
+
+
+def test_resume_refuses_after_a_readme_edit(tmp_path):
+    """The hash is over the real plan: a README command change invalidates it."""
+    from hosts import windows_full
+    from test_plan_rules import _readme, _repo
+
+    from rtfmup.plan.build import build_plan
+
+    root = _repo(tmp_path, "r", {"README.md": _readme("echo one\necho two")})
+
+    def plan() -> Plan:
+        return build_plan(analyze(root), windows_full())
+
+    go(plan(), root, assume_yes=True)
+    (root / "README.md").write_text(_readme("echo one\necho three"), newline="\n")
+    result, _o, _e = go(plan(), root, assume_yes=True, resume=True)
+    assert result.exit_code == 2 and "plan changed" in result.message
