@@ -47,11 +47,12 @@ echo "== remote work dir: $work (rtfmup $(git -C "$ROOT" rev-parse --short HEAD)
 git -C "$ROOT" archive HEAD | remote "tar -x -C '$work'"
 # gitea-runner has no uv of its own (CI gets it from setup-uv per job), so install one
 # into the work dir, with its cache and Pythons there too: nothing lands in the home
-# directory and no shell profile is edited (UV_NO_MODIFY_PATH). Env var names checked
+# directory, no shell profile is edited and no receipt is written (UV_UNMANAGED_INSTALL,
+# the installer's CI mode; read in install.sh itself, 2026-11-18). Env var names checked
 # against docs.astral.sh/uv (installer and environment variables), 2026-11-18.
 uvenv="UV_CACHE_DIR='$work/.uv/cache' UV_PYTHON_INSTALL_DIR='$work/.uv/python' UV_TOOL_DIR='$work/.uv/tools'"
 uvpath="'$work/.uv/bin':/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-remote "curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR='$work/.uv/bin' UV_NO_MODIFY_PATH=1 sh >/dev/null 2>&1 && '$work/.uv/bin/uv' --version"
+remote "curl -LsSf https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL='$work/.uv/bin' sh >/dev/null 2>&1 && '$work/.uv/bin/uv' --version"
 remote "cd '$work' && export $uvenv PATH=$uvpath && uv sync --locked -q && touch .started"
 
 pass=0
@@ -74,7 +75,9 @@ done
 remote "$snapshot" > "$OUT/macos-after.txt"
 echo
 echo "== left behind (after minus before):"
-diff "$OUT/macos-before.txt" "$OUT/macos-after.txt" | grep '^>' || echo "   nothing"
+# Processes are a point-in-time view: a CI job running on the same runner shows up too.
+left="$(diff "$OUT/macos-before.txt" "$OUT/macos-after.txt" | grep '^>' || true)"
+echo "${left:-   nothing}"
 echo "   (remote work dir $work is kept for inspection; delete it with: ssh $SSH_HOST rm -rf '$work')"
 
 echo
