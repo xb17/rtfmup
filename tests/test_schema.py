@@ -85,3 +85,31 @@ def test_extra_keys_forbidden_in_nested_models():
 def test_defaults_applied():
     c = make_analysis().commands[0]
     assert (c.platform, c.variant, c.needs_shell, c.flags) == ("any", None, False, [])
+
+
+SCHEMA_MD = Path(__file__).parents[1] / "docs" / "schema.md"
+
+
+def test_schema_markdown_matches_the_generator():
+    from rtfmup.schema_md import render_markdown
+
+    assert SCHEMA_MD.read_bytes().decode("utf-8") == render_markdown(), (
+        "docs/schema.md is stale: run `uv run rtfmup schema --markdown > docs/schema.md`"
+    )
+
+
+def test_schema_markdown_cli_output_is_the_generator_output():
+    from rtfmup.schema_md import render_markdown
+
+    out = subprocess.run(
+        [sys.executable, "-m", "rtfmup.cli", "schema", "--markdown"],
+        capture_output=True,
+        check=True,
+    ).stdout.decode("utf-8")
+    assert out == render_markdown()
+
+
+def test_schema_markdown_covers_every_model():
+    text = SCHEMA_MD.read_text(encoding="utf-8")
+    for name in Analysis.model_json_schema()["$defs"]:
+        assert f"## {name}\n" in text

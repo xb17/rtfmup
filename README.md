@@ -25,6 +25,7 @@ rtfmup scan [path|url] --json   # the same analysis as JSON (schema: rtfmup sche
 rtfmup scan [path|url] --fresh  # ignore the cached analysis
 rtfmup plan [path|url]          # show the ordered setup plan, with risk levels and gaps; runs nothing
 rtfmup plan [path|url] --json   # the same plan as JSON (also saved to .rtfmup/plan.json)
+rtfmup schema [--markdown]       # print the analysis JSON Schema, or the same as Markdown (docs/schema.md)
 rtfmup doctor                   # probe this machine: OS, shells, installed tools (read-only)
 rtfmup export devcontainer [path|url] [--write]   # print a devcontainer.json; --write saves it to .devcontainer/ after asking
 ```
@@ -51,6 +52,8 @@ When a README lists several ways to install the project itself (a package manage
 env templates, Makefile/Justfile, devcontainer, CI, deployment files), reads the README
 (`.md` and `.rst`), classifies the commands it finds, and reports conflicts between the two and
 questions it would have to ask. It never runs anything from the repo.
+
+The analysis format is documented in [docs/schema.md](docs/schema.md). Changes between releases are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Roadmap
 

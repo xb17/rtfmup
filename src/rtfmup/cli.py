@@ -25,6 +25,7 @@ from rtfmup.plan.build import BadChoice, Choices, Unanswered, build_plan
 from rtfmup.plan.model import Plan
 from rtfmup.plan.render import render_plan
 from rtfmup.plan.store import DEVCONTAINER_FILE, plan_json, write_plan, write_state_file
+from rtfmup.schema_md import render_markdown
 from rtfmup.source import SourceError, resolve
 
 app = typer.Typer(
@@ -321,10 +322,20 @@ def doctor(
 
 
 @app.command()
-def schema() -> None:
+def schema(
+    markdown: Annotated[
+        bool,
+        typer.Option(
+            "--markdown", help="Print the schema as Markdown (docs/schema.md)."
+        ),
+    ] = False,
+) -> None:
     """Print the analysis JSON Schema."""
     # Bytes + LF so output is identical on every OS (the committed file is LF).
-    text = json.dumps(Analysis.model_json_schema(), indent=2) + "\n"
+    if markdown:
+        text = render_markdown()
+    else:
+        text = json.dumps(Analysis.model_json_schema(), indent=2) + "\n"
     sys.stdout.buffer.write(text.encode("utf-8"))
     sys.stdout.buffer.flush()
 
