@@ -90,7 +90,7 @@ def test_a_needs_shell_step_runs_under_pwsh_on_windows(tmp_path):
     assert result.ok and out.getvalue().split() == ["42"]
 
 
-DRIVER = """
+DRIVER = r"""
 import io, signal, sys
 from pathlib import Path
 from rtfmup.execute.runner import run_step
