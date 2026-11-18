@@ -52,10 +52,12 @@ for repo in "${repos[@]}"; do
       export PATH="$HOME/.local/bin:$PATH"
       cp -r /src /work && cd /work
       uv sync --locked -q
+      touch /work/.started
       set +e
       uv run python bench/e2e.py --only "'"$repo"'" --on-host </dev/null
       code=$?
-      cp bench/results/e2e-*-"'"$repo"'".md /out/ 2>/dev/null
+      # only the report of this run: the tree also carries committed older ones
+      find bench/results -name "e2e-*-'"$repo"'.md" -newer /work/.started -exec cp {} /out/ \;
       exit $code
     ' || status=$?
   if [ "$status" -eq 0 ]; then pass=$((pass + 1)); fi
