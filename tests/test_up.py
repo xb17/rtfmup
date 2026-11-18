@@ -467,3 +467,28 @@ def test_a_plan_of_only_other_os_steps_blocks_with_exit_4(tmp_path):
 def test_an_empty_plan_is_nothing_to_run_exit_1(tmp_path):
     result, _o, _e = go(make_plan([]), tmp_path, assume_yes=True)
     assert result.outcome == "nothing" and result.exit_code == 1
+
+
+def test_unix_runtime_step_adds_install_dirs_for_later_steps(tmp_path, monkeypatch):
+    """T5.2b: on Linux/macOS the runtime step's PATH comes from unixpath, and Go's
+    directory is only asked for once a go runtime step has run."""
+    seen_installed: list[frozenset] = []
+
+    def fake(current, *, installed=frozenset()):
+        seen_installed.append(installed)
+        return "/fresh/bin" + os.pathsep + current
+
+    monkeypatch.setattr("rtfmup.execute.up.unix_refreshed_path", fake)
+    seen = tmp_path / "path.txt"
+    steps = [
+        py("runtime-go-mise", "runtime", "pass"),
+        py(
+            "after",
+            "setup",
+            f"import os; open({str(seen)!r}, 'w').write(os.environ['PATH'])",
+        ),
+    ]
+    result, _, _ = go(make_plan(steps, os_="linux"), tmp_path, assume_yes=True)
+    assert result.outcome == "stopped"
+    assert seen.read_text().startswith("/fresh/bin")
+    assert seen_installed == [frozenset({"go"})]

@@ -23,6 +23,7 @@ from rtfmup.execute.diagnose import diagnose
 from rtfmup.execute.envsetup import EnvResult, Prompter, setup_env
 from rtfmup.execute.health import DEFAULT_HEALTH_TIMEOUT, run_with_health
 from rtfmup.execute.runner import DEFAULT_TIMEOUT, RunLog, run_step
+from rtfmup.execute.unixpath import refreshed_path as unix_refreshed_path
 from rtfmup.execute.winpath import refreshed_path
 from rtfmup.exitcodes import (
     EXIT_DECLINED,
@@ -269,6 +270,7 @@ def execute_plan(
     cancel = cancel or threading.Event()
     total = len(to_run) + len(env_steps) + len(done_before)
     child_env: dict[str, str] = {}  # grows when a runtime step changes PATH
+    installed_runtimes: set[str] = set()
 
     def done(outcome: Outcome, message: str = "") -> UpResult:
         state.finish(outcome)
@@ -372,8 +374,14 @@ def execute_plan(
                 _failed(err, res.tail, quiet)
             return done("failed", f"{step.title}: {res.status}.")
         if step.kind == "runtime":
-            child_env["PATH"] = refreshed_path(
-                child_env.get("PATH", os.environ.get("PATH", ""))
-            )
+            current = child_env.get("PATH", os.environ.get("PATH", ""))
+            if plan.host_os == "windows":
+                child_env["PATH"] = refreshed_path(current)
+            else:
+                # Provider step ids are `runtime-<name>-<provider>` (providers/base.py).
+                installed_runtimes.add(step.id.split("-")[1] if "-" in step.id else "")
+                child_env["PATH"] = unix_refreshed_path(
+                    current, installed=frozenset(installed_runtimes)
+                )
 
     return done("stopped", "Setup finished; the plan has no run step.")
