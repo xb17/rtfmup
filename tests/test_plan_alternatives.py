@@ -113,3 +113,65 @@ def test_without_a_host_alternative_other_os_ones_stay_gaps(tmp_path):
     readme = "# w\n\n## Install\n\n```sh\nbrew install tool\n```\n\n```sh\nsudo apt-get install tool\n```\n"
     plan = _plan(tmp_path, windows_full(), readme)
     assert len([g for g in plan.gaps if g.kind == "unsupported_platform"]) == 2
+
+
+def test_ubuntu_uses_apt_get_not_an_unprobed_gentoo_emerge(tmp_path):
+    """T5.8 on Linux: ripgrep's README lists emerge before apt-get; Ubuntu has apt-get."""
+    from hosts import ubuntu, with_tools
+
+    readme = (
+        "# tool\n\n## Installation\n\n```sh\nsudo emerge sys-apps/tool\n```\n\n"
+        "```sh\nsudo apt-get install tool\n```\n"
+    )
+    plan = _plan(tmp_path, with_tools(ubuntu(), "apt-get"), readme)
+    texts = [s.title for s in plan.steps if s.kind == "install"]
+    assert any("apt-get install tool" in t for t in texts), texts
+    assert not any("emerge" in t for t in texts), texts
+
+
+def test_an_unprobed_system_manager_does_not_beat_cargo(tmp_path):
+    """Unprobed used to rank above missing, so `emerge` beat a cargo rtfmup provides."""
+    from hosts import ubuntu
+
+    readme = (
+        "# tool\n\n## Installation\n\n```sh\nsudo emerge sys-apps/tool\n```\n\n"
+        "```sh\ncargo install tool\n```\n"
+    )
+    cargo_toml = '[package]\nname = "tool"\nversion = "1.0.0"\n'
+    root = _repo(tmp_path, "tool", {"README.md": readme, "Cargo.toml": cargo_toml})
+    # cargo probed and missing (rtfmup can provision rust); emerge not probed at all
+    plan = _build(root, host=without(ubuntu(), "cargo"))
+    texts = [s.title for s in plan.steps if s.kind == "install"]
+    assert any("cargo install tool" in t for t in texts), texts
+    assert not any("emerge" in t for t in texts), texts
+
+
+def test_macos_with_an_unwritable_brew_falls_back_from_brew_install(tmp_path):
+    """T5.8 on the Mac mini: `brew install datasette` failed on brew's lock files."""
+    from hosts import mac, with_tool
+
+    readme = (
+        "# tool\n\n## Installation\n\n```sh\nbrew install tool\n```\n\n"
+        "```sh\npip install tool\n```\n"
+    )
+    host = mac().model_copy(
+        update={
+            "tools": {
+                **mac().tools,
+                "brew": mac().tools.get("brew") or _missing("brew"),
+            }
+        }
+    )
+    plan = _plan(tmp_path, with_tool(host, "python", "3.12.11"), readme)
+    texts = [s.title for s in plan.steps if s.kind == "install"]
+    assert not any(t.startswith("brew install") for t in texts), texts
+
+
+def _missing(name: str):
+    from rtfmup.host.probe import ToolInfo
+
+    return ToolInfo(
+        found=False,
+        path=f"/opt/homebrew/bin/{name}",
+        note="installed, but /opt/homebrew is not writable by this user",
+    )

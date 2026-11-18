@@ -453,3 +453,21 @@ def test_gold_alt_must_be_group_slash_option():
     with pytest.raises(pydantic.ValidationError):
         GoldStep(category="install", command="x", alt="nogroup")
     assert GoldStep(category="install", command="x", alt="get/cargo-install").alt
+
+
+@pytest.mark.parametrize(
+    ("platform", "sub"), [("win32", ""), ("linux", "bin"), ("darwin", "bin")]
+)
+def test_on_host_npm_globals_are_on_path_for_each_os(
+    tmp_path, monkeypatch, platform, sub
+):
+    """T5.8: on macOS `npm install pm2 -g && pm2 ...` hit `pm2: command not found`."""
+    import e2e
+
+    monkeypatch.setattr(e2e.sys, "platform", platform)
+    env = e2e.step_env(tmp_path, on_host=True)
+    first = env["PATH"].split(e2e.os.pathsep)[0]
+    assert first == str(
+        tmp_path / "npm-global" / sub if sub else tmp_path / "npm-global"
+    )
+    assert env["NPM_CONFIG_PREFIX"] == str(tmp_path / "npm-global")

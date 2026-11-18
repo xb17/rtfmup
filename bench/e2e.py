@@ -70,7 +70,10 @@ def step_env(scratch: Path, *, on_host: bool) -> dict[str, str]:
         prefix.mkdir(parents=True, exist_ok=True)
         env["NPM_CONFIG_PREFIX"] = str(prefix)
         env["NPM_CONFIG_CACHE"] = str(scratch / "npm-cache")
-        env["PATH"] = str(prefix) + os.pathsep + env["PATH"]
+        # npm puts global executables in {prefix} on Windows and {prefix}/bin
+        # elsewhere (docs.npmjs.com, "folders", 2026-11-18).
+        bindir = prefix if sys.platform == "win32" else prefix / "bin"
+        env["PATH"] = str(bindir) + os.pathsep + env["PATH"]
     return env
 
 

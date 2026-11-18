@@ -458,3 +458,53 @@ def test_unix_finds_a_system_python3_without_uv_but_windows_never_asks():
     fake = UnixFake({"python3"})
     probe_unix(fake, "windows")
     assert ("python3", "--version") not in fake.calls
+
+
+# --- T5.8 bench findings ---------------------------------------------------------------
+
+
+def test_linux_probes_every_system_manager_a_readme_may_name_without_running_them():
+    """`apt-get` and `emerge` were unprobed, so they tied and README order chose Gentoo."""
+    fake = UnixFake({"git", "apt", "apt-get"})
+    p = probe_unix(fake, "linux", release=UBUNTU)
+    assert p.tools["apt-get"].found and not p.tools["emerge"].found
+    assert {"yum", "zypper", "apk", "xbps-install", "nix-env", "guix"} <= set(p.tools)
+    assert not any(c[0] in ("apt-get", "emerge") for c in fake.calls)  # presence only
+
+
+def test_brew_counts_as_missing_when_its_prefix_belongs_to_another_user():
+    """The Mac mini: brew is on PATH, but gitea-runner can't write /opt/homebrew."""
+    fake = UnixFake({"git", "brew", "sw_vers"})
+    p = probe_host(
+        os_name="macos",
+        arch="arm64",
+        run=fake.run,
+        which=fake.which,
+        workers=1,
+        euid=1000,
+        writable=lambda prefix: False,
+    )
+    assert p.brew_prefix == "/opt/homebrew"
+    assert not p.tools["brew"].found
+    assert "not writable" in (p.tools["brew"].note or "")
+    ok = probe_host(
+        os_name="macos",
+        arch="arm64",
+        run=fake.run,
+        which=fake.which,
+        workers=1,
+        euid=1000,
+        writable=lambda prefix: True,
+    )
+    assert ok.tools["brew"].found
+    # no prefix on disk to judge by: brew stays as found
+    unknown = probe_host(
+        os_name="macos",
+        arch="arm64",
+        run=fake.run,
+        which=fake.which,
+        workers=1,
+        euid=1000,
+        writable=lambda prefix: None,
+    )
+    assert unknown.tools["brew"].found

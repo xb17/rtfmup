@@ -365,6 +365,10 @@ def _info(
         presence = 0 if tool.found else 2
     elif route.tool == "cargo-binstall":
         presence = 2  # a cargo plugin counts as missing unless the probe finds it
+    elif route.tool is not None and route.tool == route.name:
+        # A system package manager the probe doesn't know is missing, not unknown:
+        # a tie between unprobed managers let README order pick `emerge` on Ubuntu.
+        presence = 2
     else:
         presence = 1  # not probed
     if presence == 2 and route.tool == route.name:

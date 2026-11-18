@@ -931,7 +931,9 @@ def _one_system_manager(installs: list[_Cand], host: HostProfile) -> list[_Cand]
 
     def rank(pm: str) -> tuple[int, int]:
         info = host.tools.get(pm)
-        presence = 1 if info is None else (0 if info.found else 2)  # None: not probed
+        # An unprobed manager counts as missing: the probe covers every manager this
+        # OS can have, so one it doesn't know isn't there (T5.8: `emerge` on Ubuntu).
+        presence = 0 if info is not None and info.found else 1
         return presence, order.index(pm) if pm in order else len(order)
 
     chosen: dict[tuple[str, ...], str] = {}

@@ -317,6 +317,21 @@ TABLE: tuple[_Entry, ...] = (
     _e("apt", _simple("apt", "--version"), _LINUX),
     _e("dnf", _simple("dnf", "--version"), _LINUX),
     _e("pacman", _simple("pacman", "--version"), _LINUX),
+    # The other system package managers a README may name (plan/build.py
+    # `_SYSTEM_PMS`): presence only, never run. Without them every unprobed manager
+    # tied, and README order chose Gentoo's `emerge` on Ubuntu (T5.8, 2026-11-18).
+    _e("apt-get", _present("apt-get"), _LINUX),
+    _e("yum", _present("yum"), _LINUX),
+    _e("zypper", _present("zypper"), _LINUX),
+    _e("emerge", _present("emerge"), _LINUX),
+    _e("apk", _present("apk"), _LINUX),
+    _e("xbps-install", _present("xbps-install"), _LINUX),
+    _e("snap", _present("snap"), _LINUX),
+    _e("flatpak", _present("flatpak"), _LINUX),
+    _e("port", _present("port"), _MAC),
+    _e("nix-env", _present("nix-env"), _UNIX),
+    _e("flox", _present("flox"), _UNIX),
+    _e("guix", _present("guix"), _LINUX),
     _e("bash", _simple("bash", "--version"), _UNIX),
     _e("sudo", _present("sudo"), _UNIX),  # presence only: never executed (T5.2)
     _e("python", _python),
@@ -347,9 +362,10 @@ def probe_host(
     workers: int = 16,
     read_os_release_text: Callable[[], str | None] = read_os_release,
     euid: int | None = None,
+    writable: Callable[[str], bool | None] | None = None,
 ) -> HostProfile:
-    """Probe this host. `run`, `which`, the os-release reader and the uid are
-    injectable for tests."""
+    """Probe this host. `run`, `which`, the os-release reader, the uid and the
+    write-access check are injectable for tests."""
     host_os = normalize_os(os_name or platform.system())
     host_arch = normalize_arch(arch or platform.machine())
     ctx = _Ctx(run=run, which=which, host_os=host_os)
@@ -370,12 +386,54 @@ def probe_host(
         facts.update(_linux_facts(read_os_release_text()))
     elif host_os == "macos":
         facts.update(_macos_facts(ctx, tools))
+        tools = _brew_usable(tools, facts.get("brew_prefix"), writable)
     if host_os != "windows":
         uid = euid if euid is not None else getattr(os, "geteuid", lambda: None)()
         facts["is_root"] = None if uid is None else uid == 0
     return HostProfile(
         os=host_os, arch=host_arch, tools=tools, docker_daemon=daemon, **facts
     )
+
+
+def _brew_prefix_writable(prefix: str) -> bool | None:
+    """Can this user write where brew installs? None when the prefix isn't there."""
+    if not os.path.isdir(prefix):
+        return None
+    dirs = [
+        os.path.join(prefix, "Cellar"),
+        os.path.join(prefix, "var", "homebrew", "locks"),
+    ]
+    return all(
+        os.access(d, os.W_OK) for d in [d for d in dirs if os.path.isdir(d)] or [prefix]
+    )
+
+
+def _brew_usable(
+    tools: dict[str, ToolInfo],
+    prefix: str | None,
+    writable: Callable[[str], bool | None] | None = None,
+) -> dict[str, ToolInfo]:
+    """brew counts as missing when this user can't write to its prefix.
+
+    On a Mac with several accounts, one user owns the Homebrew prefix, and brew
+    refuses to install for anyone else ("Permission denied" on its lock files, T5.8
+    on the Mac mini, 2026-11-18). Homebrew installs into `<prefix>/Cellar` and locks
+    under `<prefix>/var/homebrew/locks`; both must be writable. Checked with
+    os.access, so no brew command is run to find out.
+    """
+    brew = tools.get("brew")
+    if brew is None or not brew.found or prefix is None:
+        return tools
+    if (writable or _brew_prefix_writable)(prefix) is not False:
+        return tools  # writable, or no prefix on disk to judge by
+    blocked = brew.model_copy(
+        update={
+            "found": False,
+            "note": f"installed, but {prefix} is not writable by this user "
+            "(Homebrew belongs to another account)",
+        }
+    )
+    return {**tools, "brew": blocked}
 
 
 def _linux_facts(text: str | None) -> dict:
