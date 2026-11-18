@@ -1,43 +1,47 @@
 # Gold annotation (approved by Drew). Source: README.md at the pinned sha.
+# `alt` groups added 2026-11-18 for T4.0 (approach approved by Drew).
 repo: ripgrep
 variant: native
 steps:
-  # Package-manager installs: alternatives, one per platform or distro.
-  - {category: install, command: "brew install ripgrep", variant: macos, platform: macos}
-  - {category: install, command: "sudo port install ripgrep", variant: macos, platform: unix}
-  - {category: install, command: "choco install ripgrep", variant: windows, platform: windows}
-  - {category: install, command: "scoop install ripgrep", variant: windows, platform: windows}
-  - {category: install, command: "winget install BurntSushi.ripgrep.MSVC", variant: windows, platform: windows}
-  - {category: install, command: "sudo pacman -S ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo emerge sys-apps/ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo dnf install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo zypper install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo dnf config-manager --set-enabled crb", variant: linux, platform: unix}
-  - {category: install, command: "sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm", variant: linux, platform: unix}
-  - {category: install, command: "sudo subscription-manager repos --enable codeready-builder-for-rhel-10-$(arch)-rpms", variant: linux, platform: unix}
-  - {category: install, command: "nix-env --install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "flox install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "guix install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "curl -LO https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep_14.1.1-1_amd64.deb", variant: linux, platform: unix}
-  - {category: install, command: "sudo dpkg -i ripgrep_14.1.1-1_amd64.deb", variant: linux, platform: unix}
-  - {category: install, command: "sudo apt-get install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo pkg install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "doas pkg_add ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo pkgin install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo pkgman install ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "sudo pkgman install ripgrep_x86", variant: linux, platform: unix}
-  - {category: install, command: "sudo xbps-install -Syv ripgrep", variant: linux, platform: unix}
-  - {category: install, command: "cargo install ripgrep", variant: native, platform: any}
-  - {category: install, command: "cargo binstall ripgrep", variant: native, platform: any}
+  # Every way to get ripgrep is an alternative: `alt: get/<option>` (group/option).
+  # The plan-order metric scores the one option the plan chose; the rest are
+  # left out of the comparison. Pass 2 recall and precision still count them all.
+  # Package-manager installs: one per platform or distro.
+  - {category: install, command: "brew install ripgrep", variant: macos, platform: macos, alt: get/brew}
+  - {category: install, command: "sudo port install ripgrep", variant: macos, platform: unix, alt: get/port}
+  - {category: install, command: "choco install ripgrep", variant: windows, platform: windows, alt: get/choco}
+  - {category: install, command: "scoop install ripgrep", variant: windows, platform: windows, alt: get/scoop}
+  - {category: install, command: "winget install BurntSushi.ripgrep.MSVC", variant: windows, platform: windows, alt: get/winget}
+  - {category: install, command: "sudo pacman -S ripgrep", variant: linux, platform: unix, alt: get/pacman}
+  - {category: install, command: "sudo emerge sys-apps/ripgrep", variant: linux, platform: unix, alt: get/emerge}
+  - {category: install, command: "sudo dnf install ripgrep", variant: linux, platform: unix, alt: get/dnf}
+  - {category: install, command: "sudo zypper install ripgrep", variant: linux, platform: unix, alt: get/zypper}
+  - {category: install, command: "sudo dnf config-manager --set-enabled crb", variant: linux, platform: unix, alt: get/rhel}
+  - {category: install, command: "sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm", variant: linux, platform: unix, alt: get/rhel}
+  - {category: install, command: "sudo subscription-manager repos --enable codeready-builder-for-rhel-10-$(arch)-rpms", variant: linux, platform: unix, alt: get/rhel}
+  - {category: install, command: "nix-env --install ripgrep", variant: linux, platform: unix, alt: get/nix}
+  - {category: install, command: "flox install ripgrep", variant: linux, platform: unix, alt: get/flox}
+  - {category: install, command: "guix install ripgrep", variant: linux, platform: unix, alt: get/guix}
+  - {category: install, command: "curl -LO https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep_14.1.1-1_amd64.deb", variant: linux, platform: unix, alt: get/deb}
+  - {category: install, command: "sudo dpkg -i ripgrep_14.1.1-1_amd64.deb", variant: linux, platform: unix, alt: get/deb}
+  - {category: install, command: "sudo apt-get install ripgrep", variant: linux, platform: unix, alt: get/apt}
+  - {category: install, command: "sudo pkg install ripgrep", variant: linux, platform: unix, alt: get/pkg}
+  - {category: install, command: "doas pkg_add ripgrep", variant: linux, platform: unix, alt: get/pkg_add}
+  - {category: install, command: "sudo pkgin install ripgrep", variant: linux, platform: unix, alt: get/pkgin}
+  - {category: install, command: "sudo pkgman install ripgrep", variant: linux, platform: unix, alt: get/pkgman}
+  - {category: install, command: "sudo pkgman install ripgrep_x86", variant: linux, platform: unix, alt: get/pkgman-x86}
+  - {category: install, command: "sudo xbps-install -Syv ripgrep", variant: linux, platform: unix, alt: get/xbps}
+  - {category: install, command: "cargo install ripgrep", variant: native, platform: any, alt: get/cargo-install}
+  - {category: install, command: "cargo binstall ripgrep", variant: native, platform: any, alt: get/cargo-binstall}
   # Building from source.
   - {category: install, command: "git clone https://github.com/BurntSushi/ripgrep", variant: native, platform: any}
   - {category: setup, command: "cd ripgrep", variant: native, platform: any}
   # PLAN section 2.5 makes `cargo build` Rust's install step (approved by Drew).
-  - {category: install, command: "cargo build --release", variant: native, platform: any}
-  - {category: run, command: "./target/release/rg --version", variant: native, platform: unix}
-  - {category: install, command: "cargo build --release --features 'pcre2'", variant: native, platform: any}
-  - {category: setup, command: "rustup target add x86_64-unknown-linux-musl", variant: native, platform: any}
-  - {category: install, command: "cargo build --release --target x86_64-unknown-linux-musl", variant: native, platform: any}
+  - {category: install, command: "cargo build --release", variant: native, platform: any, alt: get/source}
+  - {category: run, command: "./target/release/rg --version", variant: native, platform: unix, alt: get/source}
+  - {category: install, command: "cargo build --release --features 'pcre2'", variant: native, platform: any, alt: get/source-pcre2}
+  - {category: setup, command: "rustup target add x86_64-unknown-linux-musl", variant: native, platform: any, alt: get/source-musl}
+  - {category: install, command: "cargo build --release --target x86_64-unknown-linux-musl", variant: native, platform: any, alt: get/source-musl}
 runtimes:
   - {name: rust, spec: "1.96.0"}  # "ripgrep compiles with Rust 1.96.0 (stable) or newer"
 env_required: []

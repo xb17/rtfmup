@@ -417,3 +417,39 @@ def test_e2e_report_path_is_a_no_op_off_ci(tmp_path, monkeypatch):
 
     monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
     publish_report_path(tmp_path / "r.md")  # nothing to write to, nothing raised
+
+
+def test_plan_order_scores_only_the_alternative_the_plan_chose():
+    from metrics import _chosen_alternatives
+
+    def entry(text, alt=None, cat="install"):
+        return (text, cat), alt
+
+    entries = [
+        entry("winget install x", "get/winget"),
+        entry("cargo install x", "get/cargo"),
+        entry("curl -LO x.deb", "get/deb"),
+        entry("sudo dpkg -i x.deb", "get/deb"),
+        entry("x --version", cat="run"),
+    ]
+    planned = {("cargo install x", "install"), ("x --version", "run")}
+    assert _chosen_alternatives(entries, planned) == [
+        ("cargo install x", "install"),
+        ("x --version", "run"),
+    ]
+    # nothing of the group planned: scored against the first option, README order
+    assert _chosen_alternatives(entries, set()) == [
+        ("winget install x", "install"),
+        ("x --version", "run"),
+    ]
+    # a multi-step option wins when more of its steps are planned
+    deb = {("curl -LO x.deb", "install"), ("sudo dpkg -i x.deb", "install")}
+    assert _chosen_alternatives(entries, deb)[:2] == sorted(deb)
+
+
+def test_gold_alt_must_be_group_slash_option():
+    import pydantic
+
+    with pytest.raises(pydantic.ValidationError):
+        GoldStep(category="install", command="x", alt="nogroup")
+    assert GoldStep(category="install", command="x", alt="get/cargo-install").alt

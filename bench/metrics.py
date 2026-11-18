@@ -18,6 +18,11 @@ Definitions, from the plan:
                          steps that clone the repo itself (and `cd` into it) are left
                          out, and so are not counted in the denominator: rtfmup starts
                          inside the repo and the plan skips them by design.
+                         Gold steps tagged `alt: <group>/<option>` are alternatives
+                         (T4.0): per group, only the option with the most steps in the
+                         plan is compared (README order breaks ties, so a plan with none
+                         of them is scored against the first option); the other
+                         options' steps leave the comparison and the denominator.
 Only README-sourced extracted commands count (CI and Procfile commands do not).
 """
 
@@ -27,7 +32,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from rtfmup.models import Analysis
 from rtfmup.plan.build import parse_clone, repo_key
@@ -46,6 +51,8 @@ class GoldStep(BaseModel):
     command: str
     variant: Literal["docker", "native", "windows", "macos", "linux"] | None = None
     platform: Literal["any", "windows", "unix", "macos", "linux"] = "any"
+    # alternative group and option, e.g. "get/cargo-install" (see plan order score)
+    alt: str | None = Field(default=None, pattern=r"^[\w.-]+/[\w.-]+$")
 
 
 class GoldRuntime(BaseModel):
@@ -148,17 +155,45 @@ def _is_cd_to(segment: str, dests: set[str]) -> bool:
     return bool(m and m.group(1).strip("\"'").rstrip("/").lower() in dests)
 
 
-def gold_items(gold: Gold, own_url: str | None = None) -> list[tuple[str, str]]:
-    seen: list[tuple[str, str]] = []
+def _gold_entries(
+    gold: Gold, own_url: str | None
+) -> list[tuple[tuple[str, str], str | None]]:
+    """Comparable (item, alt) pairs in gold order, bootstrap dropped, deduplicated."""
+    seen: list[tuple[tuple[str, str], str | None]] = []
     dests: set[str] = set()
     for step in gold.steps:
         text = normalize(step.command)
         if _bootstrap(text, own_url, dests):
             continue
         item = (ENV_TOKEN, "setup") if _ENV_COPY.match(text) else (text, step.category)
-        if item not in seen:
-            seen.append(item)
+        if all(item != s for s, _ in seen):
+            seen.append((item, step.alt))
     return seen
+
+
+def gold_items(gold: Gold, own_url: str | None = None) -> list[tuple[str, str]]:
+    return [item for item, _ in _gold_entries(gold, own_url)]
+
+
+def _chosen_alternatives(
+    entries: list[tuple[tuple[str, str], str | None]], planned: set[tuple[str, str]]
+) -> list[tuple[str, str]]:
+    """Gold items with each `alt` group cut down to the option the plan chose."""
+    hits: dict[str, dict[str, int]] = {}  # group -> option -> planned items, gold order
+    for item, alt in entries:
+        if alt is not None:
+            group, option = alt.split("/", 1)
+            options = hits.setdefault(group, {})
+            options[option] = options.get(option, 0) + (item in planned)
+    chosen = {
+        group: max(options, key=options.__getitem__)  # first max: README order
+        for group, options in hits.items()
+    }
+    return [
+        item
+        for item, alt in entries
+        if alt is None or chosen[alt.split("/", 1)[0]] == alt.split("/", 1)[1]
+    ]
 
 
 def plan_items(analysis: Analysis, plan: Plan) -> list[tuple[str, str]]:
@@ -180,8 +215,9 @@ def plan_order(
     analysis: Analysis, plan: Plan, gold: Gold, own_url: str | None = None
 ) -> tuple[int, int]:
     """(LCS length, number of gold items compared)."""
-    items = gold_items(gold, own_url)
-    return lcs(plan_items(analysis, plan), items), len(items)
+    planned = plan_items(analysis, plan)
+    items = _chosen_alternatives(_gold_entries(gold, own_url), set(planned))
+    return lcs(planned, items), len(items)
 
 
 def score_repo(
