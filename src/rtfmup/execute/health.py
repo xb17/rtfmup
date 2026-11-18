@@ -1,11 +1,29 @@
 """Run and health (T3.5): start the long-running step, wait for its port, report Up.
 
 Port-in-use is checked before anything starts. The owning PID/name comes from
-`Get-NetTCPConnection` (verified on Windows 11); other hosts get the plain gap.
+`Get-NetTCPConnection` on Windows (verified on Windows 11). On Linux and macOS (T5.5):
+
+  1. `lsof -nP -iTCP:<port> -sTCP:LISTEN -Fpc`: `-n`/`-P` skip name lookups, `-iTCP:port`
+     selects the port, `-sTCP:LISTEN` the state, `-F pc` prints `p<pid>` and
+     `c<command>` lines (lsof manual, lsof.readthedocs.io, checked 2026-11-18).
+  2. Linux only, when lsof is missing: `ss -ltnpH 'sport = :<port>'` (ss(8): -l
+     listening, -t tcp, -n numeric, -p processes, -H no header, `sport = :PORT`);
+     the `users:(("name",pid=N,fd=N))` field is ss's usual format.
+  3. Linux only, when neither tool exists (a slim container): the kernel's own
+     tables, `/proc/net/tcp{,6}` for the listening socket's inode and
+     `/proc/<pid>/fd/*` for the process holding it. Not in the plan; added because
+     the Gitea container has neither tool to rely on. It sees only processes this
+     user may inspect, which includes everything rtfmup itself would collide with.
+
+A tool that finds nothing or fails simply yields no owner: the gap is still raised,
+just without a PID.
 """
 
 from __future__ import annotations
 
+import os
+import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -67,10 +85,100 @@ def port_open(port: int, *, timeout: float = 0.3) -> bool:
     return False
 
 
-def port_owner(port: int) -> PortOwner | None:
-    """Who is listening on `port`. Windows only; None when unknown or free."""
-    if sys.platform != "win32":
+def _run_text(argv: list[str]) -> str | None:
+    exe = shutil.which(argv[0])
+    if exe is None:
         return None
+    try:
+        done = subprocess.run(
+            [exe, *argv[1:]],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def parse_lsof(text: str) -> PortOwner | None:
+    """`-F pc` output: `p<pid>` then `c<command>` per process, one field per line."""
+    pid: int | None = None
+    for line in text.splitlines():
+        if line.startswith("p") and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line.startswith("c") and pid is not None:
+            return PortOwner(pid, line[1:] or None)
+    return PortOwner(pid, None) if pid is not None else None
+
+
+_SS_USERS = re.compile(r'\(\("([^"]*)",pid=(\d+)')
+
+
+def parse_ss(text: str) -> PortOwner | None:
+    m = _SS_USERS.search(text)
+    return PortOwner(int(m.group(2)), m.group(1) or None) if m else None
+
+
+def _proc_owner(port: int, proc: Path = Path("/proc")) -> PortOwner | None:
+    """The process holding the listening socket on `port`, from /proc."""
+    inodes: set[str] = set()
+    for table in ("net/tcp", "net/tcp6"):
+        try:
+            rows = (proc / table).read_text(encoding="ascii").splitlines()[1:]
+        except OSError:
+            continue
+        for row in rows:
+            cols = row.split()
+            # sl local_address rem_address st ... inode; st 0A is LISTEN
+            listening = len(cols) > 9 and cols[3] == "0A"
+            if listening and int(cols[1].rpartition(":")[2], 16) == port:
+                inodes.add(cols[9])
+    if not inodes:
+        return None
+    wanted = {f"socket:[{i}]" for i in inodes}
+    try:
+        entries = list(proc.iterdir())
+    except OSError:
+        return None
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        try:
+            for fd in (entry / "fd").iterdir():
+                try:
+                    if os.readlink(fd) in wanted:
+                        try:
+                            name = (entry / "comm").read_text().strip() or None
+                        except OSError:
+                            name = None
+                        return PortOwner(int(entry.name), name)
+                except OSError:
+                    continue
+        except OSError:
+            continue  # not ours to look at
+    return None
+
+
+def _port_owner_posix(port: int) -> PortOwner | None:
+    port = int(port)
+    text = _run_text(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-Fpc"])
+    if text and (owner := parse_lsof(text)):
+        return owner
+    if sys.platform.startswith("linux"):
+        text = _run_text(["ss", "-ltnpH", f"sport = :{port}"])
+        if text and (owner := parse_ss(text)):
+            return owner
+        return _proc_owner(port)
+    return None
+
+
+def port_owner(port: int) -> PortOwner | None:
+    """Who is listening on `port`; None when unknown or free."""
+    if sys.platform != "win32":
+        return _port_owner_posix(port)
     try:
         proc = subprocess.run(
             [

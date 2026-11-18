@@ -10,8 +10,6 @@ import threading
 import time
 from pathlib import Path
 
-import pytest
-
 from rtfmup.execute import health
 from rtfmup.execute.health import (
     check_port_free,
@@ -83,8 +81,8 @@ def test_check_port_free_gap_when_in_use():
     assert str(port) in gap.message and "in use" in gap.message
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Get-NetTCPConnection is Windows")
 def test_port_owner_finds_our_own_pid():
+    """Windows: Get-NetTCPConnection. Linux/macOS (T5.5): lsof, then ss, then /proc."""
     s, port = listener()
     try:
         owner = port_owner(port)
@@ -94,7 +92,6 @@ def test_port_owner_finds_our_own_pid():
     assert owner.name and "python" in owner.name.lower()
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Get-NetTCPConnection is Windows")
 def test_gap_names_owning_process():
     s, port = listener()
     try:
@@ -233,3 +230,58 @@ def test_no_port_means_plain_run(tmp_path: Path):
 
 def test_module_exports():
     assert health.DEFAULT_HEALTH_TIMEOUT == 120
+
+
+# --- T5.5: parsers and the /proc fallback, with captured tool output ------------------
+
+
+def test_parse_lsof_field_output():
+    from rtfmup.execute.health import parse_lsof
+
+    assert parse_lsof("p4242\ncpython3.12\n") == health.PortOwner(4242, "python3.12")
+    # one process with several fds: the first process wins
+    assert parse_lsof("p7\ncnode\nf20\nf21\np8\ncother\n").pid == 7
+    assert parse_lsof("p9\n") == health.PortOwner(9, None)
+    assert parse_lsof("") is None and parse_lsof("garbage\n") is None
+
+
+def test_parse_ss_users_field():
+    from rtfmup.execute.health import parse_ss
+
+    line = 'LISTEN 0 5 127.0.0.1:8000 0.0.0.0:* users:(("python3",pid=1234,fd=3))\n'
+    assert parse_ss(line) == health.PortOwner(1234, "python3")
+    two = 'LISTEN 0 4096 *:80 *:* users:(("nginx",pid=11,fd=6),("nginx",pid=12,fd=6))'
+    assert parse_ss(two).pid == 11
+    assert parse_ss("LISTEN 0 5 127.0.0.1:8000 0.0.0.0:*\n") is None  # not our uid
+
+
+def test_proc_fallback_finds_the_holder_of_a_listening_inode(tmp_path, monkeypatch):
+    (tmp_path / "net").mkdir()
+    header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+    (tmp_path / "net" / "tcp").write_text(
+        header
+        + "   0: 0100007F:1F40 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000 0 99001 1 0 100 0 0 10 0\n"
+        + "   1: 0100007F:1F41 00000000:0000 01 00000000:00000000 00:00000000 00000000  1000 0 99002 1 0 100 0 0 10 0\n",
+        encoding="ascii",
+    )
+    (tmp_path / "net" / "tcp6").write_text(header, encoding="ascii")
+    sockets = {"100": "socket:[11]", "4242": "socket:[99001]"}
+    for pid in sockets:
+        fd = tmp_path / pid / "fd"
+        fd.mkdir(parents=True)
+        (fd / "3").write_text("")
+        (tmp_path / pid / "comm").write_text("holder\n" if pid == "4242" else "other\n")
+    monkeypatch.setattr(
+        health.os, "readlink", lambda p: sockets[Path(p).parent.parent.name]
+    )
+    (tmp_path / "self").mkdir()  # non-numeric entries are skipped
+    assert health._proc_owner(8000, tmp_path) == health.PortOwner(4242, "holder")
+    assert (
+        health._proc_owner(8001, tmp_path) is None
+    )  # 0x1F41 is ESTABLISHED, not LISTEN
+    assert health._proc_owner(9, tmp_path) is None
+
+
+def test_a_missing_tool_means_no_owner_not_an_error(monkeypatch):
+    monkeypatch.setattr(health.shutil, "which", lambda _n: None)
+    assert health._run_text(["lsof", "-v"]) is None
