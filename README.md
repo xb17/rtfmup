@@ -3,7 +3,7 @@
 **Set up any repo from its README.**
 Read The Fine Manual, then bring it `up`.
 
-> ⚠️ **Early development.** This release analyses a repo, builds a setup plan, exports a devcontainer, and sets the repo up and runs it with `rtfmup up` on Windows, Linux and macOS. Many real READMEs still trip it up: in our benchmark, `up` brings 2 of 7 real repos all the way to running. `recipe` is a stub.
+> ⚠️ **Early development.** This release analyses a repo, builds a setup plan, exports a devcontainer, and sets the repo up and runs it with `rtfmup up` on Windows, Linux and macOS. Many real READMEs still trip it up: in our benchmark, `up` brings 1 to 2 of 7 real repos all the way to running, depending on the OS. `recipe` is a stub.
 
 ## What it does
 
@@ -81,7 +81,15 @@ Measured on a pinned corpus of 10 real repos (`bench/`), 2026-11-18:
 | README command precision | 61% | 91% |
 | Category accuracy | 90% | 94% |
 
-**End to end:** `rtfmup up --yes` on a fresh Windows VM per repo brings **2 of 7** to running (uptime-kuma, ripgrep). The tuning set is 1 of 4 and the held-out set 1 of 3. ripgrep has been tuned on, so the held-out figure overstates unseen repos. Per-repo reports are in `bench/results/`.
+**End to end:** `rtfmup up --yes`, with high-risk steps declined, on a fresh GitHub VM per repo:
+
+| OS (GitHub runner) | Repos brought to running | Which |
+|---|---|---|
+| Windows (`windows-latest`) | **2 of 7** | uptime-kuma, ripgrep |
+| macOS (`macos-latest`, arm64) | **2 of 7** | uptime-kuma, ripgrep |
+| Linux (`ubuntu-latest`) | **1 of 7** | ripgrep (uptime-kuma needs a newer Node than the image has) |
+
+ripgrep is in the held-out set but has been tuned on, so the held-out figures overstate unseen repos. On barer hosts the numbers are lower: 1 of 7 on a Mac as a non-admin user, and 0 of 7 in a plain Ubuntu container, where every runtime would need a high-risk `apt` step. Per-repo reports are in `bench/results/`.
 
 ## Roadmap
 
@@ -90,7 +98,7 @@ Measured on a pinned corpus of 10 real repos (`bench/`), 2026-11-18:
 3. **Executor, Windows** (done): invokes existing tools (`uv`, `npm`, `cargo`, …), guides `.env` setup, runs the project, and health-checks it.
 4. **Polish** (done): install alternatives, failure diagnostics, resume, clearer exit codes.
 
-5. **Linux and macOS** (unreleased): the same flow on both, with their own shells, package managers (Homebrew, apt, dnf, pacman, mise), PATH handling and failure diagnostics. See Platforms for what is tested where.
+5. **Linux and macOS** (done): the same flow on both, with their own shells, package managers (Homebrew, apt, dnf, pacman, mise), PATH handling and failure diagnostics. See Platforms for what is tested where.
 
 ## License
 

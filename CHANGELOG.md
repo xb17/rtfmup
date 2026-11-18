@@ -7,6 +7,8 @@ behavior).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-18
+
 Linux and macOS (M5).
 
 ### Added
@@ -36,6 +38,11 @@ Linux and macOS (M5).
   like are `linux`, `brew`, `xcode-select` and the like are `macos`, and generic bash
   stays `unix`. A macOS host no longer plans a README's `apt` line.
 - README "Platforms" lists what is tested where.
+- The host probe checks for every system package manager a README may name (`apt-get`,
+  `emerge`, `zypper`, ...) without running them, and one it doesn't know counts as
+  missing: an Ubuntu host no longer plans Gentoo's `emerge` from a list of options.
+- Homebrew counts as unavailable when this user can't write to its prefix (a
+  Homebrew owned by another account), and `doctor` says so.
 
 ## [0.4.0] - 2026-11-18
 
@@ -122,7 +129,8 @@ Polish (M4).
 
 - Name claim: a minimal manifest scan of the repo root.
 
-[Unreleased]: https://github.com/xb17/rtfmup/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/xb17/rtfmup/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/xb17/rtfmup/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/xb17/rtfmup/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/xb17/rtfmup/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/xb17/rtfmup/compare/v0.1.0...v0.2.0
