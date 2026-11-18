@@ -471,3 +471,23 @@ def test_on_host_npm_globals_are_on_path_for_each_os(
         tmp_path / "npm-global" / sub if sub else tmp_path / "npm-global"
     )
     assert env["NPM_CONFIG_PREFIX"] == str(tmp_path / "npm-global")
+
+
+def test_on_host_pm2_state_stays_in_scratch_and_is_killed(tmp_path, monkeypatch):
+    import e2e
+
+    env = e2e.step_env(tmp_path, on_host=True)
+    assert env["PM2_HOME"] == str(tmp_path / "pm2-home")
+    assert e2e.stop_pm2(env) is None  # no pm2 ever ran
+    (tmp_path / "pm2-home").mkdir()
+    calls = []
+    monkeypatch.setattr(e2e.shutil, "which", lambda name, path=None: "/x/pm2")
+    monkeypatch.setattr(
+        e2e.subprocess,
+        "run",
+        lambda argv, **kw: (
+            calls.append(argv) or e2e.subprocess.CompletedProcess(argv, 0)
+        ),
+    )
+    assert e2e.stop_pm2(env) == "pm2 kill (exit 0)"
+    assert calls == [["/x/pm2", "kill"]]

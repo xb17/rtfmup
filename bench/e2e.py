@@ -74,7 +74,25 @@ def step_env(scratch: Path, *, on_host: bool) -> dict[str, str]:
         # elsewhere (docs.npmjs.com, "folders", 2026-11-18).
         bindir = prefix if sys.platform == "win32" else prefix / "bin"
         env["PATH"] = str(bindir) + os.pathsep + env["PATH"]
+        # pm2 keeps its daemon state in PM2_HOME (default ~/.pm2; pm2.keymetrics.io,
+        # "Environment variables", 2026-11-18). Keep it in the scratch folder, and
+        # stop_pm2 kills the daemon when the repo is done (the 2026-11-14 leftover).
+        env["PM2_HOME"] = str(scratch / "pm2-home")
     return env
+
+
+def stop_pm2(env: dict[str, str]) -> str | None:
+    """Kill a pm2 daemon a repo step started under our PM2_HOME. None if none ran."""
+    home = env.get("PM2_HOME")
+    if not home or not Path(home).exists():
+        return None
+    exe = shutil.which("pm2", path=env.get("PATH"))
+    if exe is None:
+        return "pm2 home exists but pm2 is not on PATH: check for a daemon by hand"
+    proc = subprocess.run(
+        [exe, "kill"], env=env, capture_output=True, text=True, timeout=60, check=False
+    )
+    return f"pm2 kill (exit {proc.returncode})"
 
 
 def _new_group() -> dict:
@@ -233,6 +251,9 @@ def run_one(args: argparse.Namespace) -> int:
         done_ok, done_note = done_check(done_cmd, env)
     elif done_cmd:
         done_note = "not checked: `up` did not finish cleanly"
+    cleanup = stop_pm2(env)
+    if cleanup:
+        print(f"== cleanup: {cleanup}", flush=True)
     success = bool(up_line) or done_ok
     verdict = "SUCCESS" if success else ("TIMEOUT" if timed_out else "FAILED")
     print(f"\n== {verdict}: {args.only} in {seconds:.0f}s (exit {proc.returncode})")
