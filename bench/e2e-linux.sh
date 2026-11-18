@@ -24,7 +24,7 @@ else
 import tomllib
 for r in tomllib.load(open('bench/corpus.toml', 'rb'))['repo']:
     if r.get('e2e'):
-        print(r['name'])")
+        print(r['name'])" | tr -d '\r')  # Windows Python prints CRLF
 fi
 
 # Docker Desktop on Windows needs Windows paths for bind mounts (Git Bash gives /tmp/...).
