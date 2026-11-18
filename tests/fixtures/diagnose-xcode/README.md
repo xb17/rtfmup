@@ -6,5 +6,5 @@ without the Command Line Tools.
 ## Install
 
 ```bash
-echo "xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools), missing xcrun at: /Library/Developer/CommandLineTools/usr/bin/xcrun" >&2 && false
+echo "xcrun: error: invalid active developer path (CommandLineTools), missing xcrun" >&2 && false
 ```
