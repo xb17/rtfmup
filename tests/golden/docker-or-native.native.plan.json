@@ -145,5 +145,6 @@
         "detector": "containers.compose"
       }
     ]
-  }
+  },
+  "skipped_alternatives": []
 }

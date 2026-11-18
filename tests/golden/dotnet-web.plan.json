@@ -99,5 +99,6 @@
         "detector": "readme.port"
       }
     ]
-  }
+  },
+  "skipped_alternatives": []
 }

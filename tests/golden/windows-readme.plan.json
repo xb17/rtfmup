@@ -105,5 +105,6 @@
     }
   ],
   "gaps": [],
-  "health": null
+  "health": null,
+  "skipped_alternatives": []
 }

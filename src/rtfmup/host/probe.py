@@ -256,6 +256,8 @@ TABLE: tuple[_Entry, ...] = (
     _e("bun", _simple("bun", "--version")),
     _e("go", _simple("go", "version")),
     _e("cargo", _simple("cargo", "--version")),
+    # `cargo binstall` is the cargo-binstall plugin; `-V` verified against 1.27.0.
+    _e("cargo-binstall", _simple("cargo-binstall", "-V")),
     _e("rustc", _simple("rustc", "--version")),
     _e("ruby", _simple("ruby", "--version")),
     _e("php", _simple("php", "--version")),

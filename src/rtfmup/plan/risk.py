@@ -92,7 +92,7 @@ RULES: tuple[_Rule, ...] = (
         "downloads Python packages",
     ),
     _r(
-        rf"{_CMD}cargo\s+(?:build|install|fetch|add|update|run|check)\b|"
+        rf"{_CMD}cargo\s+(?:build|install|binstall|fetch|add|update|run|check)\b|"
         rf"{_CMD}go\s+(?:mod\s+download|get|install)\b|"
         rf"{_CMD}(?:bundle|gem)\s+(?:install|update)\b|"
         rf"{_CMD}composer\s+(?:install|update|require)\b|"

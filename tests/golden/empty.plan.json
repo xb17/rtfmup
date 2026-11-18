@@ -12,5 +12,6 @@
       "fix": null
     }
   ],
-  "health": null
+  "health": null,
+  "skipped_alternatives": []
 }

@@ -50,6 +50,15 @@ class Gap(_Model):
     fix: str | None = None
 
 
+class SkippedAlternative(_Model):
+    """A README command left out of the plan because it is one of several ways to do
+    the same thing (T4.0). Nothing is dropped silently."""
+
+    text: str
+    evidence: list[SourceRef] = []
+    reason: str
+
+
 class Plan(_Model):
     schema_version: Literal["1"] = "1"
     analysis_ref: str  # sha256 of the analysis.json bytes
@@ -60,3 +69,4 @@ class Plan(_Model):
     steps: list[Step]
     gaps: list[Gap]
     health: Port | None
+    skipped_alternatives: list[SkippedAlternative] = []

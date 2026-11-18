@@ -40,6 +40,7 @@ OUTPUTS: dict[tuple[str, ...], str] = {
     ("pnpm", "--version"): "10.20.0\n",
     ("go", "version"): "go version go1.27.3 windows/amd64\n",
     ("cargo", "--version"): "cargo 1.99.1 (5f94df478 2026-08-27)\n",
+    ("cargo-binstall", "-V"): "1.27.0\n",
     ("rustc", "--version"): "rustc 1.99.1 (58cf8f9c3 2026-10-13)\n",
     (
         "dotnet",
@@ -82,6 +83,7 @@ WINDOWS_TOOLS = {
     "pnpm",
     "go",
     "cargo",
+    "cargo-binstall",
     "rustc",
     "dotnet",
     "docker",
@@ -107,6 +109,12 @@ def test_versions_parsed_from_real_output_formats():
     assert v["cargo"] == "1.99.1"
     assert v["rustc"] == "1.99.1"
     assert v["docker"] == "29.9.2"
+
+
+def test_cargo_binstall_is_probed_with_dash_v():
+    p = probe(Fake(WINDOWS_TOOLS))
+    assert p.tools["cargo-binstall"].version == "1.27.0"
+    assert probe(Fake({"cargo"})).tools["cargo-binstall"].found is False
 
 
 def test_not_installed_means_found_false_and_no_command_run():

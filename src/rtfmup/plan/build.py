@@ -25,6 +25,7 @@ from pathlib import Path
 from rtfmup.execute.providers import select_steps
 from rtfmup.host.probe import HostProfile
 from rtfmup.models import Ambiguity, Analysis, Command, Component, SourceRef
+from rtfmup.plan.alternatives import resolve_alternatives
 from rtfmup.plan.gaps import compute_gaps, owner_of
 from rtfmup.plan.model import Gap, Plan, Step, StepKind
 from rtfmup.plan.risk import rate
@@ -686,9 +687,28 @@ def build_plan(
                     evidence=d.evidence,
                 )
             )
-    steps += [
-        from_cand("install", c) for c in _one_system_manager(readme_installs, host)
-    ]
+    one_manager = _one_system_manager(readme_installs, host)
+    # `readme()` keeps one of each repeated command, so classify every README install
+    # candidate by its (text, cwd) key, not by id.
+    all_keys = {(c.text, c.cwd) for c in readme_installs}
+    kept_keys = {(c.text, c.cwd) for c in one_manager}
+    installs = [c for c in walk.cands if c.cmd.category == "install"]
+    system_dropped = {
+        c.cmd.id for c in installs if (c.text, c.cwd) in all_keys - kept_keys
+    }
+    # An install the manifests contradict is already out (with a gap): not a candidate.
+    rejected = {c.cmd.id for c in installs if (c.text, c.cwd) not in all_keys}
+    alt = resolve_alternatives(
+        a,
+        comp,
+        [c for c in walk.cands if c.cmd.id not in rejected],
+        host,
+        own_urls,
+        system_dropped=system_dropped,
+    )
+    walk.cands = [c for c in walk.cands if c.cmd.id not in alt.drop]
+    gaps += alt.gaps
+    steps += [from_cand("install", c) for c in one_manager if c.cmd.id not in alt.drop]
 
     # env: one step from the template; the README's `cp .env.example .env` folds into it
     template = next(
@@ -773,6 +793,7 @@ def build_plan(
         steps=steps,
         gaps=all_gaps,
         health=health,
+        skipped_alternatives=alt.skipped,
     )
 
 

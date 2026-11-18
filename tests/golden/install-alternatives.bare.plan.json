@@ -1,0 +1,184 @@
+{
+  "schema_version": "1",
+  "host_os": "windows",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "cargo install altdemo",
+      "argv": [
+        "cargo",
+        "install",
+        "altdemo"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads dependencies"
+      ],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-3"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 22,
+          "line_end": 22,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "run",
+      "title": "cargo run (from Cargo.toml)",
+      "argv": [
+        "cargo",
+        "run"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads dependencies"
+      ],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "Cargo.toml",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "manifest.run.cargo"
+        }
+      ],
+      "long_running": true
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "missing_runtime",
+      "message": "Rust is required but is not installed.",
+      "fix": "Install Rust with rustup: https://rustup.rs"
+    }
+  ],
+  "health": null,
+  "skipped_alternatives": [
+    {
+      "text": "winget install Demo.altdemo",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 10,
+          "line_end": 10,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "another system package manager was chosen for this section"
+    },
+    {
+      "text": "scoop install altdemo",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 16,
+          "line_end": 16,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    },
+    {
+      "text": "cargo binstall altdemo",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 28,
+          "line_end": 28,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    },
+    {
+      "text": "curl -LO https://github.com/demo/altdemo/releases/download/1.0.0/altdemo_1.0.0_amd64.deb",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 34,
+          "line_end": 34,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    },
+    {
+      "text": "sudo dpkg -i altdemo_1.0.0_amd64.deb",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 35,
+          "line_end": 35,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    },
+    {
+      "text": "cargo build --release",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 43,
+          "line_end": 43,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    },
+    {
+      "text": "cargo build --release --features x",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 49,
+          "line_end": 49,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    },
+    {
+      "text": "rustup target add x86_64-unknown-linux-musl",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 55,
+          "line_end": 55,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    },
+    {
+      "text": "cargo build --release --target x86_64-unknown-linux-musl",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 56,
+          "line_end": 56,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "alternative to `cargo install altdemo` (route cargo install chosen: tool missing, medium risk)"
+    }
+  ]
+}

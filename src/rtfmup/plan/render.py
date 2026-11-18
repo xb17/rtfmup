@@ -88,10 +88,27 @@ def render_plan(plan: Plan, console: Console) -> None:
                 p(n, markup=False, highlight=False)
     else:
         p("No steps: nothing to install, configure or run was found.")
+    _render_alternatives(plan, console)
     if plan.health:
         p()
         p(f"Health check: {plan.health.url or 'port ' + str(plan.health.port)}")
     _render_gaps(plan.gaps, console)
+
+
+def _render_alternatives(plan: Plan, console: Console) -> None:
+    if not plan.skipped_alternatives:
+        return
+    console.print()
+    console.print(
+        "[bold]Alternatives not chosen[/bold] (the README offers these instead)"
+    )
+    for alt in plan.skipped_alternatives:
+        ev = alt.evidence[0] if alt.evidence else None
+        where = ""
+        if ev is not None:
+            where = f"{ev.file}:{ev.line_start}" if ev.line_start else ev.file
+        console.print(f"  - {alt.text}  ({where})", markup=False, highlight=False)
+        console.print(f"      {alt.reason}", markup=False, highlight=False)
 
 
 def _render_gaps(gaps: list[Gap], console: Console) -> None:
