@@ -32,6 +32,7 @@ from rtfmup.exitcodes import (
     EXIT_USAGE,
 )
 from rtfmup.models import Analysis
+from rtfmup.plan.build import analysis_ref
 from rtfmup.plan.model import Gap, Plan, Step
 from rtfmup.plan.store import write_state_file
 
@@ -76,10 +77,17 @@ class UpResult:
         }[self.outcome]
 
 
-def plan_hash(plan: Plan) -> str:
-    """sha256 of the plan's JSON (T4.2). It covers `analysis_ref`, the host, variant,
-    component and every step, so any of them changing invalidates a resume."""
-    return hashlib.sha256(plan.model_dump_json().encode("utf-8")).hexdigest()
+def plan_hash(plan: Plan, analysis: Analysis) -> str:
+    """sha256 of the plan's JSON (T4.2). It covers the analysis, the host, variant,
+    component and every step, so any of them changing invalidates a resume.
+
+    The analysis is hashed without `git_dirty`: the steps of the first run (build
+    output, `.env`) make a git checkout dirty, and that alone must not refuse the
+    resume. A real README or manifest change still alters the analysis and the hash.
+    """
+    stable = analysis_ref(analysis.model_copy(update={"git_dirty": None}))
+    data = plan.model_copy(update={"analysis_ref": stable}).model_dump_json()
+    return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
 def load_state(root: Path) -> dict | None:
@@ -98,14 +106,18 @@ class _State:
     """`.rtfmup/state.json`: per-step status, rewritten after every change."""
 
     def __init__(
-        self, root: Path, plan: Plan, done: dict[str, dict] | None = None
+        self,
+        root: Path,
+        plan: Plan,
+        analysis: Analysis,
+        done: dict[str, dict] | None = None,
     ) -> None:
         self.root = root
         done = done or {}
         self.data: dict = {
             "schema_version": "1",
             "analysis_ref": plan.analysis_ref,
-            "plan_hash": plan_hash(plan),
+            "plan_hash": plan_hash(plan, analysis),
             "started": _now(),
             "outcome": None,
             "steps": {
@@ -203,7 +215,7 @@ def execute_plan(
                 "cannot_resume",
                 "there is no earlier run to resume: run `rtfmup up` without --resume.",
             )
-        if prior.get("plan_hash") != plan_hash(plan):
+        if prior.get("plan_hash") != plan_hash(plan, analysis):
             return UpResult(
                 "cannot_resume",
                 "the plan changed since the last run: run `rtfmup up` without "
@@ -258,7 +270,7 @@ def execute_plan(
     if not confirmer.confirm_batch(to_run):
         return UpResult("declined", "Nothing was run.")
 
-    state = _State(root, plan, done_before)
+    state = _State(root, plan, analysis, done_before)
     log = RunLog(root / CACHE_DIR / RUN_LOG)
     prompter = prompter or Prompter(interactive=interactive and not assume_yes, out=err)
     cancel = cancel or threading.Event()

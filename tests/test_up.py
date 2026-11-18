@@ -404,6 +404,30 @@ def test_resume_refuses_after_a_readme_edit(tmp_path):
     assert result.exit_code == 2 and "plan changed" in result.message
 
 
+def test_resume_survives_a_git_checkout_made_dirty_by_the_first_run(tmp_path):
+    """A step's untracked output makes the checkout dirty; that alone is no change."""
+    from conftest import _git
+    from hosts import windows_full
+    from test_plan_rules import _readme, _repo
+
+    from rtfmup.plan.build import build_plan
+
+    root = _repo(tmp_path, "r", {"README.md": _readme("echo one\necho two")})
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "fixture")
+    clean = analyze(root)
+    assert clean.git_dirty is False
+    go(build_plan(clean, windows_full()), root, assume_yes=True)
+    (root / "build-output.txt").write_text("made by a step")
+    dirty = analyze(root)
+    assert dirty.git_dirty is True
+    result, _o, _e = go(
+        build_plan(dirty, windows_full()), root, assume_yes=True, resume=True
+    )
+    assert result.exit_code == 0 and "plan changed" not in result.message
+
+
 # --- T4.3 quiet and blocking -------------------------------------------------------
 
 
