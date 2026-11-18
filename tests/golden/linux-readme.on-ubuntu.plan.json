@@ -1,0 +1,169 @@
+{
+  "schema_version": "1",
+  "host_os": "linux",
+  "host_arch": "x86_64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "uv venv (from the manifest)",
+      "argv": [
+        "uv",
+        "venv"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads Python packages"
+      ],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "requirements.txt",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "python.requirements"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "install",
+      "title": "uv pip install -r requirements.txt (from the manifest)",
+      "argv": [
+        "uv",
+        "pip",
+        "install",
+        "-r",
+        "requirements.txt"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads Python packages"
+      ],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "requirements.txt",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "python.requirements"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-3",
+      "kind": "install",
+      "title": "sudo apt install postgresql",
+      "argv": [
+        "sudo",
+        "apt",
+        "install",
+        "postgresql"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "high",
+      "risk_reasons": [
+        "uses sudo",
+        "system package manager (needs elevation)"
+      ],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-1"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 8,
+          "line_end": 8,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-4",
+      "kind": "setup",
+      "title": "sudo systemctl start postgresql",
+      "argv": [
+        "sudo",
+        "systemctl",
+        "start",
+        "postgresql"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "high",
+      "risk_reasons": [
+        "uses sudo",
+        "changes a system service"
+      ],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-4"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 26,
+          "line_end": 26,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "missing_runtime",
+      "message": "`uv venv (from the manifest)` needs uv, which is not installed.",
+      "fix": "Install uv: https://docs.astral.sh/uv/getting-started/installation/"
+    },
+    {
+      "kind": "unresolved",
+      "message": "No run command found in the README or the manifests.",
+      "fix": null
+    }
+  ],
+  "health": null,
+  "skipped_alternatives": [
+    {
+      "text": "sudo dnf install postgresql-server",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 14,
+          "line_end": 14,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "another system package manager was chosen for this section"
+    },
+    {
+      "text": "sudo pacman -S postgresql",
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 20,
+          "line_end": 20,
+          "detector": "readme.fence"
+        }
+      ],
+      "reason": "another system package manager was chosen for this section"
+    }
+  ]
+}

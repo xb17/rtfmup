@@ -1,0 +1,124 @@
+{
+  "schema_version": "1",
+  "host_os": "macos",
+  "host_arch": "arm64",
+  "variant": null,
+  "component": "root",
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "install",
+      "title": "xcode-select --install",
+      "argv": [
+        "xcode-select",
+        "--install"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-1"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 6,
+          "line_end": 6,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-2",
+      "kind": "install",
+      "title": "brew install node@20",
+      "argv": [
+        "brew",
+        "install",
+        "node@20"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "medium",
+      "risk_reasons": [
+        "installs a toolchain"
+      ],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-2"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 7,
+          "line_end": 7,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-3",
+      "kind": "install",
+      "title": "npm install",
+      "argv": [
+        "npm",
+        "install"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "medium",
+      "risk_reasons": [
+        "downloads npm packages"
+      ],
+      "platform_ok": true,
+      "from_commands": [
+        "cmd-3"
+      ],
+      "evidence": [
+        {
+          "file": "README.md",
+          "line_start": 8,
+          "line_end": 8,
+          "detector": "readme.fence"
+        }
+      ],
+      "long_running": false
+    },
+    {
+      "id": "step-4",
+      "kind": "run",
+      "title": "npm run start (from package.json)",
+      "argv": [
+        "npm",
+        "run",
+        "start"
+      ],
+      "shell_text": null,
+      "cwd": ".",
+      "env": {},
+      "risk": "low",
+      "risk_reasons": [],
+      "platform_ok": true,
+      "from_commands": [],
+      "evidence": [
+        {
+          "file": "package.json",
+          "line_start": 1,
+          "line_end": 1,
+          "detector": "manifest.run.node_script"
+        }
+      ],
+      "long_running": true
+    }
+  ],
+  "gaps": [],
+  "health": null,
+  "skipped_alternatives": []
+}

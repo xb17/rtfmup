@@ -32,6 +32,8 @@ def mk(
 
 A = "any"
 U = "unix"
+L = "linux"
+M = "macos"
 # (text, headings, shell, category, variant, platform, flags)
 CASES = [
     # --- install (prefix) ---
@@ -50,7 +52,7 @@ CASES = [
     ("bundle install", [], "bash", "install", None, A, []),
     ("composer install", [], "bash", "install", None, A, []),
     ("dotnet restore", [], "bash", "install", None, A, []),
-    ("sudo apt install -y libpq-dev", [], "bash", "install", None, U, ["sudo"]),
+    ("sudo apt install -y libpq-dev", [], "bash", "install", None, L, ["sudo"]),
     ("brew install node@20", ["macOS"], "bash", "install", "macos", "macos", []),
     ("winget install OpenJS.NodeJS.LTS", ["Windows"], "powershell", "install", "windows", "windows", []),
     ("choco install nodejs", [], "bash", "install", None, "windows", []),
@@ -62,6 +64,41 @@ CASES = [
     ("bin/rails db:setup", [], "bash", "setup", None, A, []),
     ("python manage.py migrate", [], "bash", "setup", None, A, []),
     ("pre-commit install", ["Contributing"], "bash", "setup", None, A, []),
+    # --- T5.4: macOS tooling is macos ---
+    ("brew install node", [], "bash", "install", None, M, []),
+    ("brew install --cask docker", ["macOS"], "bash", "install", "macos", M, []),
+    ("brew install postgresql@16", ["Prerequisites"], "bash", "install", None, M, []),
+    ("xcode-select --install", [], "bash", "install", None, M, []),
+    ("sudo port install nodejs22", ["macOS"], "bash", "install", "macos", M, ["sudo"]),
+    ("softwareupdate --install-rosetta --agree-to-license", ["Apple silicon"], "bash", "install", None, M, []),
+    ("brew services start postgresql@16", ["Setup"], "bash", "setup", None, M, []),
+    ("launchctl load ~/Library/LaunchAgents/x.plist", [], "bash", "other", None, M, []),
+    ("defaults write com.apple.finder AppleShowAllFiles YES", [], "bash", "other", None, M, []),
+    # --- T5.4: Linux tooling is linux, with or without sudo ---
+    ("sudo apt install -y build-essential", [], "bash", "install", None, L, ["sudo"]),
+    ("sudo apt-get update && sudo apt-get install -y libssl-dev", ["Linux"], "bash", "install", "linux", L, ["sudo"]),
+    ("sudo dnf install gcc-c++", ["Fedora"], "bash", "install", "linux", L, ["sudo"]),
+    ("sudo pacman -S --needed base-devel", ["Arch"], "bash", "install", "linux", L, ["sudo"]),
+    ("sudo systemctl enable --now postgresql", ["Linux"], "bash", "setup", "linux", L, ["sudo"]),
+    ("sudo systemctl start redis", [], "bash", "setup", None, L, ["sudo"]),
+    ("sudo service postgresql start", [], "bash", "setup", None, L, ["sudo"]),
+    ("sudo snap install node --classic", ["Ubuntu"], "bash", "install", "linux", L, ["sudo"]),
+    ("sudo zypper install nodejs20", ["openSUSE"], "bash", "install", None, L, ["sudo"]),
+    ("sudo apk add nodejs npm", ["Alpine"], "bash", "install", None, L, ["sudo"]),
+    ("yay -S bun-bin", ["Arch"], "bash", "install", "linux", L, []),
+    ("flatpak install flathub org.example.App", ["Linux"], "bash", "install", "linux", L, []),
+    ("dpkg -i app_1.0_amd64.deb", ["Linux"], "bash", "install", "linux", L, []),
+    ("rpm -i app-1.0.rpm", ["Linux"], "bash", "install", "linux", L, []),
+    ("apt-get install -y curl", ["Debian"], "bash", "install", "linux", L, []),
+    ("sudo -E apt install foo", [], "bash", "install", None, L, ["sudo"]),
+    # --- T5.4: generic bash stays unix (runs on both), tools stay any ---
+    ("sudo make install", [], "bash", "install", None, U, ["sudo"]),
+    ("sudo chmod +x ./run.sh", [], "bash", "setup", None, U, ["sudo"]),
+    ("bash ./setup.sh", [], "bash", "setup", None, U, []),
+    ("nix-env -iA nixpkgs.hello", [], "bash", "install", None, U, []),
+    ("sudo apt install x && brew install y", [], "bash", "install", None, U, ["sudo"]),
+    ("npm install", ["macOS"], "bash", "install", "macos", A, []),
+    ("sudo npm install -g pnpm", ["Linux"], "bash", "install", "linux", U, ["sudo"]),
     ("npm run setup", [], "bash", "setup", None, A, []),
     ("python3 -m venv venv", [], "bash", "setup", None, A, []),
     ("source venv/bin/activate", [], "bash", "setup", None, U, []),
@@ -165,6 +202,11 @@ def test_classification_table(text, path, shell, category, variant, platform, fl
 
 def test_table_has_at_least_forty_cases():
     assert len(CASES) >= 40
+
+
+def test_t5_4_added_at_least_twenty_macos_and_linux_cases():
+    new = [c for c in CASES if c[5] in (L, M) or c[1] in (["macOS"], ["Linux"])]
+    assert len(new) >= 20
 
 
 def test_reason_records_the_rule():
@@ -313,7 +355,7 @@ def test_unix_only_fixture():
         for c in classify_fixture("unix-only")
     ]
     assert got == [
-        ("sudo apt install python3-venv libpq-dev", "install", "unix", ("sudo",)),
+        ("sudo apt install python3-venv libpq-dev", "install", "linux", ("sudo",)),
         ("python3 -m venv venv", "setup", "any", ()),
         ("source venv/bin/activate", "setup", "unix", ()),
         ("pip install -r requirements.txt", "install", "any", ()),
@@ -348,7 +390,7 @@ def test_macos_fixture_platforms():
     got = {c.text: (c.variant, c.platform) for c in classify_fixture("macos-readme")}
     assert got["xcode-select --install"] == ("macos", "macos")
     assert got["brew install node@20"] == ("macos", "macos")
-    assert got["sudo apt install nodejs npm"] == ("linux", "unix")
+    assert got["sudo apt install nodejs npm"] == ("linux", "linux")
     assert got["winget install OpenJS.NodeJS.LTS"][1] == "windows"
 
 

@@ -125,7 +125,9 @@ RULES: list[Rule] = [
     _r(r"^go\s+(?:mod\s+download|mod\s+tidy|get|install)\b", "install", "prefix:go"),
     _r(r"^(?:bundle\s+install|bundle$|gem\s+install|composer\s+(?:install|require|update)|dotnet\s+(?:restore|tool\s+install)|dotnet\s+workload)\b", "install", "prefix:dependency install"),
     _r(r"^(?:mvn|\./mvnw)\s+(?:install|dependency:\S+)\b|^(?:gradle|\./gradlew)\s+dependencies\b", "install", "prefix:jvm install"),
-    _r(r"^(?:apt|apt-get|aptitude|dnf|yum|pacman|apk|zypper|snap|port|nix-env|nix-shell)\b", "install", "prefix:system package"),
+    _r(r"^(?:apt|apt-get|aptitude|dnf|yum|pacman|apk|zypper|snap|port|nix-env|nix-shell|yay|paru|flatpak|emerge|xbps-install)\b", "install", "prefix:system package"),
+    _r(r"^(?:dpkg|rpm)\s+-(?:i|-install|U)\b", "install", "prefix:package file"),
+    _r(r"^(?:softwareupdate|xcode-select)\s+--install", "install", "prefix:system install"),
     _r(r"^brew\s+services\b|^(?:systemctl|service)\b", "setup", "prefix:service control"),
     _r(r"^(?:brew|choco|winget|scoop)\b", "install", "prefix:package manager"),
     _r(r"^(?:xcode-select|softwareupdate)\b", "install", "prefix:macos tooling"),
@@ -204,13 +206,26 @@ def heading_category(section_path: list[str]) -> tuple[str, str] | None:
 
 # --- platform ------------------------------------------------------------------
 
+# T5.4: `unix` means "runs on Linux and macOS" (generic bash). A command that names one
+# of the two OSes' own tooling is tagged with that OS. Word lists are the package
+# managers and system tools of each OS (their own docs; checked 2026-11-18).
 _UNIX_WORDS = {
-    "sudo", "apt", "apt-get", "aptitude", "dnf", "yum", "pacman", "apk", "zypper",
-    "source", ".", "chmod", "chown", "ln", "bash", "sh", "zsh", "snap", "nix-env",
+    "sudo", "doas", "source", ".", "chmod", "chown", "ln", "bash", "sh", "zsh",
+    "nix-env",  # Nix runs on both
 }  # fmt: skip
 _WINDOWS_WORDS = {"winget", "choco", "scoop", "iex", "setx"}
-_MACOS_WORDS = {"brew", "xcode-select", "softwareupdate"}
-_LINUX_WORDS = {"systemctl", "service"}
+_MACOS_WORDS = {
+    "brew", "port", "mas", "xcode-select", "xcrun", "softwareupdate", "launchctl",
+    "defaults", "diskutil", "hdiutil", "pbcopy", "pbpaste", "sw_vers", "codesign",
+    "spctl", "mdfind",
+}  # fmt: skip
+_LINUX_WORDS = {
+    "apt", "apt-get", "aptitude", "apt-key", "add-apt-repository", "dpkg",
+    "dnf", "yum", "rpm", "pacman", "yay", "paru", "zypper", "apk", "emerge",
+    "xbps-install", "snap", "flatpak", "systemctl", "service", "journalctl",
+    "update-alternatives", "ldconfig", "useradd", "usermod", "loginctl",
+}  # fmt: skip
+_SUDO_FLAGS = re.compile(r"^-[A-Za-z]+$")
 _CMDLET = re.compile(r"^[A-Z][a-z]+-[A-Z][A-Za-z]+$")  # Get-Date, Invoke-WebRequest
 _KV = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=\S*$")
 
@@ -222,6 +237,11 @@ def _segment_platform(seg: str) -> str:
     first = words[0]
     if _ENV_ASSIGN.match(first) and len(words) > 1:
         first = words[1]
+    if first in ("sudo", "doas"):
+        # `sudo apt install x` is Linux; a bare `sudo make install` is just unix.
+        inner = [w for w in words[words.index(first) + 1 :] if not _SUDO_FLAGS.match(w)]
+        inner_platform = _segment_platform(" ".join(inner)) if inner else "any"
+        return inner_platform if inner_platform in ("linux", "macos") else "unix"
     low = first.lower()
     # Translatable to PowerShell (D17): cp a b, cd dir, mkdir [-p], export K=V.
     if low == "cp":
@@ -257,8 +277,10 @@ def platform_for(text: str, shell: str) -> str:
         return found.pop()
     if not found:
         return "any"
-    # Mixed (e.g. `sudo apt ... && brew ...`): the strictest claim is unix-only.
-    return "unix" if "unix" in found else min(found)
+    # Mixed (e.g. `sudo apt ... && brew ...`): no single OS runs it. Between Linux and
+    # macOS the honest tag is the one that admits both; with Windows in the mix the
+    # strictest claim is unix-only (D7).
+    return "unix" if "unix" in found or found <= {"linux", "macos"} else min(found)
 
 
 # --- classification ----------------------------------------------------------
