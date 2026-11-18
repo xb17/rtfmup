@@ -72,7 +72,7 @@ Measured on a pinned corpus of 10 real repos (`bench/`), 2026-11-18:
 1. **Detection engine** (done): manifest scanner, README Markdown-AST parser, command classification (install / setup / run).
 2. **Plan generator** (done): an ordered plan with gaps surfaced (missing runtimes, env values, external services).
 3. **Executor, Windows** (done): invokes existing tools (`uv`, `npm`, `cargo`, …), guides `.env` setup, runs the project, and health-checks it.
-4. **Polish** (in progress): install alternatives, failure diagnostics, resume, clearer exit codes.
+4. **Polish** (done): install alternatives, failure diagnostics, resume, clearer exit codes.
 
 **Platform:** Windows first.
 

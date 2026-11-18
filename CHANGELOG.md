@@ -7,9 +7,9 @@ behavior).
 
 ## [Unreleased]
 
-## [0.4.0] - Unreleased
+## [0.4.0] - 2026-11-18
 
-Polish (M4). Not yet tagged.
+Polish (M4).
 
 ### Added
 
@@ -92,8 +92,8 @@ Polish (M4). Not yet tagged.
 
 - Name claim: a minimal manifest scan of the repo root.
 
-[Unreleased]: https://github.com/xb17/rtfmup/compare/v0.3.0...HEAD
-[0.4.0]: https://github.com/xb17/rtfmup/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/xb17/rtfmup/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/xb17/rtfmup/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/xb17/rtfmup/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/xb17/rtfmup/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/xb17/rtfmup/compare/v0.0.1.dev0...v0.1.0
