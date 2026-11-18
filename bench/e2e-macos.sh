@@ -45,14 +45,21 @@ remote "$snapshot" > "$OUT/macos-before.txt"
 work="$(remote 'mktemp -d -t rtfmup-bench')"
 echo "== remote work dir: $work (rtfmup $(git -C "$ROOT" rev-parse --short HEAD))"
 git -C "$ROOT" archive HEAD | remote "tar -x -C '$work'"
-remote "cd '$work' && PATH=\$HOME/.local/bin:/opt/homebrew/bin:\$PATH uv sync --locked -q && touch .started"
+# gitea-runner has no uv of its own (CI gets it from setup-uv per job), so install one
+# into the work dir, with its cache and Pythons there too: nothing lands in the home
+# directory and no shell profile is edited (UV_NO_MODIFY_PATH). Env var names checked
+# against docs.astral.sh/uv (installer and environment variables), 2026-11-18.
+uvenv="UV_CACHE_DIR='$work/.uv/cache' UV_PYTHON_INSTALL_DIR='$work/.uv/python' UV_TOOL_DIR='$work/.uv/tools'"
+uvpath="'$work/.uv/bin':/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+remote "curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR='$work/.uv/bin' UV_NO_MODIFY_PATH=1 sh >/dev/null 2>&1 && '$work/.uv/bin/uv' --version"
+remote "cd '$work' && export $uvenv PATH=$uvpath && uv sync --locked -q && touch .started"
 
 pass=0
 for repo in "${repos[@]}"; do
   echo
   echo "== [$repo]"
   status=0
-  remote "cd '$work' && PATH=\$HOME/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+  remote "cd '$work' && export $uvenv PATH=$uvpath && \
     RTFMUP_BENCH_WHERE='Mac mini as gitea-runner (non-admin, over SSH)' \
     uv run python bench/e2e.py --only '$repo' --on-host </dev/null" || status=$?
   if [ "$status" -eq 0 ]; then pass=$((pass + 1)); fi
