@@ -202,9 +202,30 @@ def render_summary(a: Analysis, console: Console) -> None:
             p(f"  - {w}", markup=False, highlight=False)
 
 
+def _host_facts(h: HostProfile) -> list[tuple[str, str]]:
+    """OS-specific lines (T5.2): distro or macOS version, brew prefix, and so on."""
+    yes_no = {True: "yes", False: "no", None: "unknown"}
+    facts: list[tuple[str, str]] = []
+    if h.distro_id:
+        like = f" (like {' '.join(h.distro_like)})" if h.distro_like else ""
+        version = f" {h.distro_version}" if h.distro_version else ""
+        facts.append(("Distro", f"{h.distro_id}{version}{like}"))
+    if h.os_version:
+        facts.append(("macOS", h.os_version))
+    if h.os == "macos":
+        facts.append(("Homebrew prefix", h.brew_prefix or "not installed"))
+        facts.append(("Command Line Tools", yes_no[h.xcode_clt]))
+        facts.append(("Rosetta translation", yes_no[h.rosetta]))
+    if h.is_root is not None:
+        facts.append(("Running as root", yes_no[h.is_root]))
+    return facts
+
+
 def render_host(h: HostProfile, console: Console) -> None:
     """Human-readable host profile."""
     console.print(f"[bold]rtfmup doctor[/bold] {h.os} {h.arch}")
+    for label, value in _host_facts(h):
+        console.print(f"{label}: {value}")
     console.print()
     t = _table(console, "Tools", "tool", "version", "installed", "path / note")
     for name, tool in h.tools.items():

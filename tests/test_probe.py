@@ -279,3 +279,182 @@ def test_find_executable_never_picks_up_the_current_directory(tmp_path, monkeypa
     found = find_executable(name)
     assert found is not None
     assert os.path.normcase(found) == os.path.normcase(str(real))
+
+
+# --- T5.2: Linux and macOS facts ----------------------------------------------------
+
+UBUNTU = """\
+PRETTY_NAME="Ubuntu 24.04.3 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+ID=ubuntu
+ID_LIKE=debian
+"""
+FEDORA = "NAME=Fedora\nID=fedora\nVERSION_ID=43\n"
+ARCH = "NAME='Arch Linux'\nID=arch\nBUILD_ID=rolling\n# no VERSION_ID on Arch\n"
+UNIX_OUTPUTS: dict[tuple[str, ...], str] = {
+    **OUTPUTS,
+    ("mise", "--version"): "2026.11.3 linux-x64 (2026-11-10)\n",
+    ("apt", "--version"): "apt 2.8.3 (amd64)\n",
+    ("dnf", "--version"): "4.21.0\n  Installed: dnf-0:4.21.0-1.fc43.noarch at x\n",
+    ("pacman", "--version"): (
+        "\n .--.                  Pacman v7.0.0 - libalpm v15.0.0\n"
+        "/ _.-' .-.  .-.  .-.   Copyright (C) 2006-2024 Pacman Development Team\n"
+    ),
+    (
+        "bash",
+        "--version",
+    ): "GNU bash, version 5.2.21(1)-release (x86_64-pc-linux-gnu)\n",
+    ("python3", "--version"): "Python 3.12.3\n",
+    ("brew", "--version"): "Homebrew 5.0.1\n",
+    ("brew", "--prefix"): "/opt/homebrew\n",
+    ("sw_vers", "-productVersion"): "27.2\n",
+    ("xcode-select", "-p"): "/Library/Developer/CommandLineTools\n",
+    ("sysctl", "-n", "sysctl.proc_translated"): "0\n",
+}
+
+
+class UnixFake(Fake):
+    def __init__(self, installed, outputs=None, rc=None):
+        super().__init__(installed)
+        self.outputs = outputs or UNIX_OUTPUTS
+        self.rc = rc or {}
+
+    def run(self, argv, timeout):
+        key = (os.path.basename(argv[0]), *argv[1:])
+        self.calls.append(key)
+        if key[0] in self.rc:
+            return RunResult(self.rc[key[0]], "")
+        out = self.outputs.get(key)
+        return RunResult(0, out) if out is not None else RunResult(1, "")
+
+
+def probe_unix(fake, os_name, arch="x86_64", release=None, euid=1000):
+    return probe_host(
+        os_name=os_name,
+        arch=arch,
+        run=fake.run,
+        which=fake.which,
+        workers=1,
+        read_os_release_text=lambda: release,
+        euid=euid,
+    )
+
+
+@pytest.mark.parametrize(
+    ("release", "distro", "like", "version"),
+    [
+        (UBUNTU, "ubuntu", ["debian"], "24.04"),
+        (FEDORA, "fedora", [], "43"),
+        (ARCH, "arch", [], None),
+        (None, None, [], None),
+    ],
+    ids=["ubuntu", "fedora", "arch", "no-os-release"],
+)
+def test_linux_distro_from_os_release(release, distro, like, version):
+    p = probe_unix(UnixFake({"git", "apt", "dnf", "pacman"}), "linux", release=release)
+    assert (p.distro_id, p.distro_like, p.distro_version) == (distro, like, version)
+    assert p.brew_prefix is None and p.xcode_clt is None and p.rosetta is None
+    assert p.os_version is None
+
+
+def test_linux_probes_the_distro_managers_and_bash_but_not_brew():
+    fake = UnixFake({"git", "apt", "dnf", "pacman", "mise", "bash", "brew"})
+    p = probe_unix(fake, "linux", release=UBUNTU)
+    v = {n: t.version for n, t in p.tools.items() if t.found}
+    assert v["apt"] == "2.8.3" and v["dnf"] == "4.21.0" and v["pacman"] == "7.0.0"
+    assert v["mise"] == "2026.11.3" and v["bash"] == "5.2.21"
+    assert "brew" not in p.tools
+    assert not any(c[0] in ("sw_vers", "xcode-select", "sysctl") for c in fake.calls)
+
+
+def test_macos_arm64_facts():
+    fake = UnixFake(
+        {"git", "brew", "bash", "mise", "uv", "sw_vers", "xcode-select", "sysctl"}
+    )
+    p = probe_unix(fake, "macos", arch="arm64", release=UBUNTU)
+    assert (p.os, p.arch) == ("macos", "arm64")
+    assert p.os_version == "27.2"
+    assert p.brew_prefix == "/opt/homebrew"  # whatever `brew --prefix` said
+    assert p.xcode_clt is True and p.rosetta is False
+    assert p.distro_id is None  # os-release is a Linux fact
+    assert p.tools["brew"].version == "5.0.1"
+    assert not {"apt", "dnf", "pacman"} & set(p.tools)
+
+
+def test_macos_x86_64_has_no_translation_key_and_a_different_prefix():
+    outputs = {k: v for k, v in UNIX_OUTPUTS.items() if k[0] != "sysctl"}
+    outputs[("brew", "--prefix")] = "/usr/local\n"
+    outputs[("sw_vers", "-productVersion")] = "26.1\n"
+    fake = UnixFake({"git", "brew", "sysctl", "sw_vers"}, outputs)
+    p = probe_unix(fake, "macos", arch="x86_64")
+    assert p.brew_prefix == "/usr/local" and p.os_version == "26.1"
+    assert p.rosetta is False  # `sysctl` exits non-zero when the key is absent
+
+
+def test_macos_under_rosetta_and_without_tools():
+    outputs = dict(UNIX_OUTPUTS)
+    outputs[("sysctl", "-n", "sysctl.proc_translated")] = "1\n"
+    fake = UnixFake({"git", "sysctl"}, outputs)
+    p = probe_unix(fake, "macos", arch="x86_64")
+    assert p.rosetta is True
+    assert p.brew_prefix is None and not p.tools["brew"].found
+    assert p.xcode_clt is None  # xcode-select is not installed here: unknown
+    fake = UnixFake({"git", "xcode-select"}, rc={"xcode-select": 2})
+    assert probe_unix(fake, "macos").xcode_clt is False
+
+
+def test_is_root_follows_the_effective_uid_and_sudo_is_never_run():
+    fake = UnixFake({"git", "sudo", "apt"})
+    root = probe_unix(fake, "linux", release=UBUNTU, euid=0)
+    user = probe_unix(fake, "linux", release=UBUNTU, euid=1000)
+    assert root.is_root is True and user.is_root is False
+    assert root.tools["sudo"].found and root.tools["sudo"].path
+    assert not any(c[0] == "sudo" for c in fake.calls)  # presence only
+    assert probe(Fake(WINDOWS_TOOLS)).is_root is None  # Windows: not a uid question
+
+
+def test_mise_is_probed_on_every_os():
+    for os_name in ("windows", "linux", "macos"):
+        p = probe_unix(UnixFake({"mise"}), os_name, release=UBUNTU)
+        assert p.tools["mise"].version == "2026.11.3"
+
+
+def test_parse_os_release_handles_quotes_comments_and_junk():
+    from rtfmup.host.probe import parse_os_release
+
+    rel = parse_os_release("# c\nID=\"x y\"\nNAME='N'\nBAD LINE\n\nEMPTY=\n")
+    assert rel == {"ID": "x y", "NAME": "N", "EMPTY": ""}
+
+
+def test_doctor_text_shows_the_new_facts():
+    import io
+
+    from rich.console import Console
+
+    from rtfmup import ui
+
+    p = probe_unix(
+        UnixFake({"git", "brew", "sw_vers", "xcode-select", "sysctl"}),
+        "macos",
+        arch="arm64",
+    )
+    buf = io.StringIO()
+    ui.render_host(p, Console(file=buf, width=120))
+    text = buf.getvalue()
+    assert "macOS: 27.2" in text and "Homebrew prefix: /opt/homebrew" in text
+    assert "Command Line Tools: yes" in text and "Rosetta translation: no" in text
+    p = probe_unix(UnixFake({"git"}), "linux", release=UBUNTU, euid=0)
+    buf = io.StringIO()
+    ui.render_host(p, Console(file=buf, width=120))
+    assert "Distro: ubuntu 24.04 (like debian)" in buf.getvalue()
+    assert "Running as root: yes" in buf.getvalue()
+
+
+def test_unix_finds_a_system_python3_without_uv_but_windows_never_asks():
+    p = probe_unix(UnixFake({"python3"}), "linux", release=UBUNTU)
+    assert p.tools["python"].versions == ["3.12.3"]
+    assert "python3" in (p.tools["python"].note or "")
+    fake = UnixFake({"python3"})
+    probe_unix(fake, "windows")
+    assert ("python3", "--version") not in fake.calls
