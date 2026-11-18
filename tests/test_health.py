@@ -89,7 +89,10 @@ def test_port_owner_finds_our_own_pid():
     finally:
         s.close()
     assert owner is not None and owner.pid == os.getpid()
-    assert owner.name and "python" in owner.name.lower()
+    assert owner.name
+    if sys.platform == "win32":
+        # elsewhere the name is the kernel's: a pytest console script reports "pytest"
+        assert "python" in owner.name.lower()
 
 
 def test_gap_names_owning_process():
