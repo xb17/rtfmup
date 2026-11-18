@@ -8,8 +8,9 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import IO, Literal
@@ -21,6 +22,7 @@ from rtfmup.plan.model import Step
 Status = Literal["ok", "failed", "timeout", "cancelled", "error"]
 
 DEFAULT_TIMEOUT = 30 * 60  # seconds, for non-run steps. `run` steps pass None.
+TAIL_LINES = 200  # output kept per step, for diagnostics (T4.1) and --quiet (T4.3)
 _GRACE = 5.0  # seconds between the polite stop and the forced tree kill
 _POLL = 0.1
 # rtfmup's own interpreter environment must not steer the target repo's tools
@@ -92,6 +94,7 @@ class StepResult:
     status: Status
     exit_code: int | None
     duration: float
+    tail: list[str] = field(default_factory=list)  # last TAIL_LINES lines
 
     @property
     def ok(self) -> bool:
@@ -202,9 +205,18 @@ def _stop_tree(proc: subprocess.Popen, job: _Job) -> None:
         pass
 
 
-def _pump(src: IO[str], sink: IO[str], lock: threading.Lock) -> None:
+def _pump(
+    src: IO[str],
+    sink: IO[str] | None,
+    lock: threading.Lock,
+    tail: deque[str] | None = None,
+) -> None:
     for line in src:
         with lock:
+            if tail is not None:
+                tail.append(line.rstrip("\r\n"))
+            if sink is None:
+                continue
             try:
                 sink.write(line)
             except UnicodeEncodeError:
@@ -228,18 +240,21 @@ def run_step(
     out: IO[str] | None = None,
     err: IO[str] | None = None,
     cancel: threading.Event | None = None,
+    quiet: bool = False,
 ) -> StepResult:
     """Run one step and stream its output live.
 
     `env` is merged over the process environment and the step's own env. It is
     where secret values from `.env` go; they are masked in our own messages and
-    in `run.log`. `timeout=None` means no limit.
+    in `run.log`. `timeout=None` means no limit. `quiet` keeps child output off the
+    terminal; the last lines are still in `StepResult.tail`.
     """
     out = out or sys.stdout
     err = err or sys.stderr
     cancel = cancel or threading.Event()
     child_env = step_environment(repo_root, step, env)
     redact = Redactor(child_env)
+    captured: deque[str] = deque(maxlen=TAIL_LINES)
 
     def say(msg: str) -> None:
         err.write(redact(msg) + "\n")
@@ -249,7 +264,13 @@ def run_step(
     started = time.monotonic()
 
     def finish(status: Status, code: int | None) -> StepResult:
-        result = StepResult(step.id, status, code, time.monotonic() - started)
+        result = StepResult(
+            step.id,
+            status,
+            code,
+            time.monotonic() - started,
+            [redact(t) for t in captured],
+        )
         if log:
             log.write(
                 redact(
@@ -288,8 +309,16 @@ def run_step(
     job = _Job(proc)
     lock = threading.Lock()
     pumps = [
-        threading.Thread(target=_pump, args=(proc.stdout, out, lock), daemon=True),
-        threading.Thread(target=_pump, args=(proc.stderr, err, lock), daemon=True),
+        threading.Thread(
+            target=_pump,
+            args=(proc.stdout, None if quiet else out, lock, captured),
+            daemon=True,
+        ),
+        threading.Thread(
+            target=_pump,
+            args=(proc.stderr, None if quiet else err, lock, captured),
+            daemon=True,
+        ),
     ]
     for t in pumps:
         t.start()

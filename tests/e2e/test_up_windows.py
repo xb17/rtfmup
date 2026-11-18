@@ -72,3 +72,26 @@ def test_up_reaches_up_on_windows(tmp_path):
                     ["taskkill", "/F", "/T", "/PID", str(proc.pid)], check=False
                 )
     assert up, "never reached Up:\n" + "".join(lines)
+
+
+def test_up_prints_a_diagnosis_for_a_failing_step(tmp_path):
+    """T4.1 accept: the MSVC failure fixture exits 1 with the explanation and fix."""
+    if sys.platform != "win32":
+        pytest.skip("Windows only until M5")
+    repo = tmp_path / "diagnose-msvc"
+    shutil.copytree(
+        FIXTURE.parent / "diagnose-msvc", repo, ignore=shutil.ignore_patterns(".rtfmup")
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "rtfmup.cli", "up", str(repo), "--yes"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+        check=False,
+    )
+    err = proc.stderr
+    assert proc.returncode == 1, err
+    assert err.index("FAILED") < err.index("Diagnosis:")
+    assert "Build Tools" in err and "fix:" in err

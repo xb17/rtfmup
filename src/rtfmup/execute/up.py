@@ -18,6 +18,7 @@ from typing import IO, Literal
 
 from rtfmup.analyze import CACHE_DIR
 from rtfmup.execute.confirm import Confirmer, is_runnable
+from rtfmup.execute.diagnose import diagnose
 from rtfmup.execute.envsetup import EnvResult, Prompter, setup_env
 from rtfmup.execute.health import DEFAULT_HEALTH_TIMEOUT, run_with_health
 from rtfmup.execute.runner import DEFAULT_TIMEOUT, RunLog, run_step
@@ -99,6 +100,14 @@ def _now() -> str:
 def _say(err: IO[str], text: str = "") -> None:
     err.write(text + "\n")
     err.flush()
+
+
+def _diagnose(err: IO[str], tail: list[str]) -> None:
+    """After a failure line: what probably went wrong and how to fix it (T4.1)."""
+    for d in diagnose(tail):
+        _say(err)
+        _say(err, f"Diagnosis: {d.explanation}")
+        _say(err, f"  fix: {d.fix}")
 
 
 def _env_step(
@@ -233,12 +242,16 @@ def execute_plan(
             )
             if health is not None and not health.up:
                 state.set(step.id, "failed", exit_code=res.exit_code)
+                if res.status in ("failed", "error"):
+                    _diagnose(err, res.tail)
                 return done("failed", health.reason)
             if res.status == "cancelled":
                 state.set(step.id, "cancelled")
                 return done("up" if health and health.up else "stopped")
             state.set(step.id, "ok" if res.ok else "failed", exit_code=res.exit_code)
             if not res.ok:
+                if res.status in ("failed", "error"):
+                    _diagnose(err, res.tail)
                 return done("failed", f"{step.title} ended with {res.status}.")
             return done("up" if health and health.up else "stopped")
 
@@ -261,6 +274,8 @@ def execute_plan(
             seconds=round(res.duration, 1),
         )
         if not res.ok:
+            if res.status in ("failed", "error"):
+                _diagnose(err, res.tail)
             return done("failed", f"{step.title}: {res.status}.")
         if step.kind == "runtime":
             child_env["PATH"] = refreshed_path(

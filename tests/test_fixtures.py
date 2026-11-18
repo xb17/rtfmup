@@ -9,7 +9,7 @@ EXPECTED = {
     "fullstack-compose", "stale-readme", "unix-only", "windows-readme",
     "console-output", "rust-cli", "go-cli", "dotnet-web", "rails-ish",
     "laravel-ish", "py-http", "rst-readme", "deploy-mixed", "k8s-manifests",
-    "macos-readme", "linux-readme", "mise-pinned", "install-alternatives",
+    "macos-readme", "linux-readme", "mise-pinned", "install-alternatives", "diagnose-msvc",
 }  # fmt: skip
 
 
