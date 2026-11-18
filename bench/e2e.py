@@ -74,20 +74,27 @@ def step_env(scratch: Path, *, on_host: bool) -> dict[str, str]:
     return env
 
 
+def _new_group() -> dict:
+    """Start rtfmup in its own process group, so stop_tree can signal all of it."""
+    if sys.platform == "win32":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
 def stop_tree(proc: subprocess.Popen[str]) -> None:
     if proc.poll() is not None:
         return
     if sys.platform == "win32":
         proc.send_signal(signal.CTRL_BREAK_EVENT)
     else:
-        proc.send_signal(signal.SIGINT)
+        os.killpg(proc.pid, signal.SIGINT)
     try:
         proc.wait(timeout=30)
     except subprocess.TimeoutExpired:
         if sys.platform == "win32":
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], check=False)
         else:
-            proc.kill()
+            os.killpg(proc.pid, signal.SIGKILL)
 
 
 def read_state(repo: Path) -> dict:
@@ -188,7 +195,7 @@ def run_one(args: argparse.Namespace) -> int:
         encoding="utf-8",
         errors="replace",
         env=env,
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        **_new_group(),
     )
     lines: list[str] = []
     up_line: list[str] = []

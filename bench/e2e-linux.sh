@@ -27,6 +27,10 @@ for r in tomllib.load(open('bench/corpus.toml', 'rb'))['repo']:
         print(r['name'])")
 fi
 
+# Docker Desktop on Windows needs Windows paths for bind mounts (Git Bash gives /tmp/...).
+hostpath() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else echo "$1"; fi; }
+mkdir -p "$OUT"
+
 src="$(mktemp -d)"
 trap 'rm -rf "$src"' EXIT
 git -C "$ROOT" archive HEAD | tar -x -C "$src"
@@ -38,7 +42,7 @@ for repo in "${repos[@]}"; do
   echo "== [$repo] fresh container"
   status=0
   MSYS_NO_PATHCONV=1 docker run --rm -i=false \
-    -v "$src:/src:ro" -v "$OUT:/out" \
+    -v "$(hostpath "$src"):/src:ro" -v "$(hostpath "$OUT"):/out" \
     -e RTFMUP_BENCH_WHERE="disposable $IMAGE container (docker run --rm, root)" \
     "$IMAGE" bash -euo pipefail -c '
       export DEBIAN_FRONTEND=noninteractive
