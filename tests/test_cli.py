@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -182,3 +183,86 @@ def test_up_on_linux_host_stops_before_running_anything(tmp_path, monkeypatch, c
     err = capsys.readouterr().err
     assert "not yet supported on this OS" in err
     assert not (repo / ".env").exists() and not (repo / ".venv").exists()
+
+
+# --- T4.3 exit codes ----------------------------------------------------------------
+
+from rtfmup import exitcodes
+from rtfmup.execute.up import UpResult
+
+README = Path(__file__).parents[1] / "README.md"
+
+
+@pytest.fixture
+def repo(fixture_copy):
+    """A throwaway copy: plan and up write .rtfmup/ into the target."""
+    return fixture_copy("py-uv")
+
+
+def _up(monkeypatch, repo, outcome: str, *extra: str):
+    monkeypatch.setattr(
+        "rtfmup.cli.execute_plan", lambda *a, **k: UpResult(outcome, "msg")
+    )
+    return runner.invoke(app, ["up", str(repo), *extra])
+
+
+@pytest.mark.parametrize(
+    ("outcome", "code"),
+    [
+        ("up", exitcodes.EXIT_OK),
+        ("stopped", exitcodes.EXIT_OK),
+        ("failed", exitcodes.EXIT_STEP_FAILED),
+        ("nothing", exitcodes.EXIT_STEP_FAILED),
+        ("unsupported", exitcodes.EXIT_USAGE),
+        ("cannot_resume", exitcodes.EXIT_USAGE),
+        ("declined", exitcodes.EXIT_DECLINED),
+        ("blocked", exitcodes.EXIT_GAPS_BLOCK),
+    ],
+)
+def test_exit_code_per_up_outcome(monkeypatch, repo, outcome, code):
+    assert _up(monkeypatch, repo, outcome).exit_code == code
+
+
+def test_exit_usage_for_bad_target(tmp_path):
+    assert runner.invoke(app, ["up", str(tmp_path / "nope")]).exit_code == 2
+
+
+def test_exit_usage_for_quiet_with_verbose(monkeypatch, repo):
+    result = _up(monkeypatch, repo, "up", "--quiet", "--verbose")
+    assert result.exit_code == 2 and "cannot be used together" in result.output
+
+
+def test_exit_codes_in_readme_match_the_module():
+    text = README.read_text(encoding="utf-8")
+    rows = {
+        int(m.group(1)): (m.group(2).strip(), m.group(3).strip())
+        for m in re.finditer(r"^\| (\d) \| ([^|]+) \| ([^|]+) \|$", text, re.MULTILINE)
+    }
+    assert rows == {c: (n, d) for c, n, d in exitcodes.TABLE}
+
+
+def test_exit_codes_are_defined_only_in_the_exitcodes_module():
+    src = (Path(__file__).parents[1] / "src" / "rtfmup").rglob("*.py")
+    offenders = [
+        p.name
+        for p in src
+        if p.name != "exitcodes.py"
+        and re.search(r"^EXIT_\w+\s*=", p.read_text(encoding="utf-8"), re.MULTILINE)
+    ]
+    assert offenders == []
+
+
+def test_verbose_plan_adds_host_and_analysis_before_the_plan(repo):
+    result = runner.invoke(app, ["plan", str(repo), "--verbose"])
+    assert result.exit_code == 0
+    out = result.output
+    assert "rtfmup doctor" in out
+    assert out.index("rtfmup doctor") < out.index("rtfmup plan")
+
+
+def test_quiet_up_skips_the_plan_table(monkeypatch, repo):
+    quiet = _up(monkeypatch, repo, "up", "--quiet")
+    normal = _up(monkeypatch, repo, "up")
+    assert "Steps (nothing has been run)" in normal.output
+    assert "Steps (nothing has been run)" not in quiet.output
+    assert "Plan" in quiet.output  # the stage headers stay

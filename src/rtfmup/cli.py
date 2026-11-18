@@ -17,6 +17,7 @@ from rtfmup import __version__, ui
 from rtfmup.analyze import analyze, remote_urls
 from rtfmup.execute.health import DEFAULT_HEALTH_TIMEOUT
 from rtfmup.execute.up import execute_plan
+from rtfmup.exitcodes import EXIT_DECLINED, EXIT_USAGE
 from rtfmup.export.devcontainer import build_devcontainer, linux_host
 from rtfmup.host.probe import probe_host
 from rtfmup.models import Ambiguity, Analysis
@@ -25,9 +26,6 @@ from rtfmup.plan.model import Plan
 from rtfmup.plan.render import render_plan
 from rtfmup.plan.store import DEVCONTAINER_FILE, plan_json, write_plan, write_state_file
 from rtfmup.source import SourceError, resolve
-
-EXIT_USAGE = 2
-EXIT_DECLINED = 3
 
 app = typer.Typer(
     name="rtfmup",
@@ -72,6 +70,40 @@ def _stub(name: str) -> None:
 
 
 _UP_STAGES = 4
+
+QuietOpt = Annotated[
+    bool,
+    typer.Option(
+        "--quiet",
+        "-q",
+        help="Only stage headers, the confirmation and the final line; "
+        "a failing step's last 40 lines.",
+    ),
+]
+VerboseOpt = Annotated[
+    bool,
+    typer.Option(
+        "--verbose", "-v", help="Show the host probe table and analysis summary first."
+    ),
+]
+
+
+def _check_verbosity(quiet: bool, verbose: bool) -> None:
+    if quiet and verbose:
+        ui.error("--quiet and --verbose cannot be used together.")
+        raise typer.Exit(EXIT_USAGE)
+
+
+def _console() -> Console:
+    return Console(width=max(100, shutil.get_terminal_size().columns))
+
+
+def _render_verbose(analysis: Analysis, host) -> None:
+    """The host probe table and the analysis summary, ahead of the plan."""
+    ui.render_host(host, _console())
+    typer.echo("", err=True)
+    ui.render_summary(analysis, _console())
+    typer.echo("", err=True)
 
 
 def _treat_break_as_interrupt() -> None:
@@ -122,8 +154,11 @@ def up(
             help="Continue the last run: skip steps that finished, if the plan is unchanged.",
         ),
     ] = False,
+    quiet: QuietOpt = False,
+    verbose: VerboseOpt = False,
 ) -> None:
     """Analyze TARGET, show the plan, confirm, set it up, and run it."""
+    _check_verbosity(quiet, verbose)
     try:
         ui.stage(1, _UP_STAGES, "Resolving target")
         source = resolve(target, cache=dest)
@@ -140,8 +175,11 @@ def up(
     )
     write_plan(source.root, result)
     ui.stage(4, _UP_STAGES, "Plan")
-    render_plan(result, Console(width=max(100, shutil.get_terminal_size().columns)))
-    typer.echo("", err=True)
+    if verbose:
+        _render_verbose(analysis, host)
+    if not quiet:  # the confirmation lists the commands and their risk
+        render_plan(result, _console())
+        typer.echo("", err=True)
 
     _treat_break_as_interrupt()
     outcome = execute_plan(
@@ -152,6 +190,7 @@ def up(
         interactive=_is_interactive(),
         health_timeout=health_timeout,
         resume=resume,
+        quiet=quiet,
     )
     if outcome.outcome in ("up", "stopped"):
         ui.done(outcome.message or "Stopped.")
@@ -230,6 +269,7 @@ def plan(
     fresh: Annotated[
         bool, typer.Option("--fresh", help="Ignore the cached analysis.")
     ] = False,
+    verbose: VerboseOpt = False,
 ) -> None:
     """Show the plan for TARGET. Nothing is executed."""
     try:
@@ -252,7 +292,9 @@ def plan(
         sys.stdout.buffer.write(plan_json(result).encode("utf-8"))
         sys.stdout.buffer.flush()
     else:
-        render_plan(result, Console(width=max(100, shutil.get_terminal_size().columns)))
+        if verbose:
+            _render_verbose(analysis, host)
+        render_plan(result, _console())
     ui.done(
         f"Plan saved to {saved}. Nothing was executed."
         if saved

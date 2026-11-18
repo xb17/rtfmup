@@ -33,6 +33,20 @@ rtfmup export devcontainer [path|url] [--write]   # print a devcontainer.json; -
 
 `up` shows every step with its source and risk before running anything. `--yes` approves low- and medium-risk steps; high-risk ones (elevation, `sudo`, piping a download into a shell) always need you to type `yes`. It installs missing runtimes with `uv`, Scoop, winget or Chocolatey, creates `.env` from the repo's template and asks for required values (secrets are never stored), runs the project, and waits for its port. A runtime it cannot install, or a step for another OS, is reported as a gap, not guessed around.
 
+`up --resume` continues the last run: steps that finished show as "already done" and the rest run again through the usual confirmation. It refuses, runs nothing and exits 2 if the plan has changed since (a README or manifest edit, another variant or host). `--quiet` (up) keeps the stage headers, the confirmation and the final line, and shows only a failing step's last 40 lines. `--verbose` (up, plan) adds the host probe table and the analysis summary before the plan. When a step fails, rtfmup prints a diagnosis and fix for the failures it recognises (missing C++ build tools, a busy port, Docker not running, wrong runtime version, long paths, PowerShell execution policy, locked files).
+
+When a README lists several ways to install the project itself (a package manager, `cargo install`, a source build, a release download), those are alternatives. The plan keeps one, and lists the others under "Alternatives not chosen".
+
+### Exit codes
+
+| Code | Meaning | Detail |
+| --- | --- | --- |
+| 0 | ok | Finished: the project is up, or setup completed. |
+| 1 | step failed | A step failed, or nothing could be run. |
+| 2 | usage | Bad arguments, an unanswered question, `--resume` refused, or an OS `up` does not support yet. |
+| 3 | declined | You declined the confirmation, or the run step. |
+| 4 | gaps block | A gap makes the plan impossible (a missing runtime with no installer, steps for another OS only, a directory that is not there). Nothing was run. |
+
 `scan` is read-only. It reads manifests (Python, Node, Rust, Go, Ruby, PHP, .NET, Docker and Compose,
 env templates, Makefile/Justfile, devcontainer, CI, deployment files), reads the README
 (`.md` and `.rst`), classifies the commands it finds, and reports conflicts between the two and
@@ -43,7 +57,7 @@ questions it would have to ask. It never runs anything from the repo.
 1. **Detection engine** (done): manifest scanner, README Markdown-AST parser, command classification (install / setup / run).
 2. **Plan generator** (done): an ordered plan with gaps surfaced (missing runtimes, env values, external services).
 3. **Executor, Windows** (done): invokes existing tools (`uv`, `npm`, `cargo`, …), guides `.env` setup, runs the project, and health-checks it.
-4. **Polish:** recovery from common failures and clearer diagnostics.
+4. **Polish** (in progress): install alternatives, failure diagnostics, resume, clearer exit codes.
 
 **Platform:** Windows first.
 

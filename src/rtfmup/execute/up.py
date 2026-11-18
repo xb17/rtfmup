@@ -24,6 +24,13 @@ from rtfmup.execute.envsetup import EnvResult, Prompter, setup_env
 from rtfmup.execute.health import DEFAULT_HEALTH_TIMEOUT, run_with_health
 from rtfmup.execute.runner import DEFAULT_TIMEOUT, RunLog, run_step
 from rtfmup.execute.winpath import refreshed_path
+from rtfmup.exitcodes import (
+    EXIT_DECLINED,
+    EXIT_GAPS_BLOCK,
+    EXIT_OK,
+    EXIT_STEP_FAILED,
+    EXIT_USAGE,
+)
 from rtfmup.models import Analysis
 from rtfmup.plan.model import Gap, Plan, Step
 from rtfmup.plan.store import write_state_file
@@ -38,7 +45,14 @@ BLOCKING_GAPS = ("missing_runtime", "runtime_version", "working_directory")
 
 StepState = Literal["pending", "ok", "failed", "skipped", "cancelled", "not_run"]
 Outcome = Literal[
-    "up", "stopped", "declined", "blocked", "failed", "unsupported", "cannot_resume"
+    "up",
+    "stopped",
+    "declined",
+    "blocked",
+    "failed",
+    "unsupported",
+    "cannot_resume",
+    "nothing",
 ]
 
 
@@ -51,13 +65,14 @@ class UpResult:
     @property
     def exit_code(self) -> int:
         return {
-            "up": 0,
-            "stopped": 0,
-            "declined": 3,
-            "blocked": 1,
-            "failed": 1,
-            "unsupported": 2,
-            "cannot_resume": 2,
+            "up": EXIT_OK,
+            "stopped": EXIT_OK,
+            "declined": EXIT_DECLINED,
+            "blocked": EXIT_GAPS_BLOCK,
+            "failed": EXIT_STEP_FAILED,
+            "nothing": EXIT_STEP_FAILED,
+            "unsupported": EXIT_USAGE,
+            "cannot_resume": EXIT_USAGE,
         }[self.outcome]
 
 
@@ -125,8 +140,16 @@ def _say(err: IO[str], text: str = "") -> None:
     err.flush()
 
 
-def _diagnose(err: IO[str], tail: list[str]) -> None:
-    """After a failure line: what probably went wrong and how to fix it (T4.1)."""
+QUIET_TAIL = 40  # lines of a failing step's output that --quiet still shows
+
+
+def _failed(err: IO[str], tail: list[str], quiet: bool) -> None:
+    """After a failure line: (quiet only) the output we held back, then the
+    diagnosis, what probably went wrong and how to fix it (T4.1)."""
+    if quiet and tail:
+        _say(err, f"last {min(len(tail), QUIET_TAIL)} lines of output:")
+        for line in tail[-QUIET_TAIL:]:
+            _say(err, f"  {line}")
     for d in diagnose(tail):
         _say(err)
         _say(err, f"Diagnosis: {d.explanation}")
@@ -161,6 +184,7 @@ def execute_plan(
     err: IO[str] | None = None,
     cancel: threading.Event | None = None,
     resume: bool = False,
+    quiet: bool = False,
 ) -> UpResult:
     out = out or sys.stdout
     err = err or sys.stderr
@@ -225,7 +249,12 @@ def execute_plan(
     if not to_run and not env_steps:
         if done_before:
             return UpResult("stopped", "Every step in the plan is already done.")
-        return UpResult("blocked", "Nothing to run.")
+        if listed_only:
+            # Every step is for another OS or manual: the plan cannot run here.
+            return UpResult(
+                "blocked", "Every step in the plan needs a different OS or is manual."
+            )
+        return UpResult("nothing", "Nothing to run.")
     if not confirmer.confirm_batch(to_run):
         return UpResult("declined", "Nothing was run.")
 
@@ -297,11 +326,12 @@ def execute_plan(
                 out=out,
                 err=err,
                 cancel=cancel,
+                quiet=quiet,
             )
             if health is not None and not health.up:
                 state.set(step.id, "failed", exit_code=res.exit_code)
                 if res.status in ("failed", "error"):
-                    _diagnose(err, res.tail)
+                    _failed(err, res.tail, quiet)
                 return done("failed", health.reason)
             if res.status == "cancelled":
                 state.set(step.id, "cancelled")
@@ -309,7 +339,7 @@ def execute_plan(
             state.set(step.id, "ok" if res.ok else "failed", exit_code=res.exit_code)
             if not res.ok:
                 if res.status in ("failed", "error"):
-                    _diagnose(err, res.tail)
+                    _failed(err, res.tail, quiet)
                 return done("failed", f"{step.title} ended with {res.status}.")
             return done("up" if health and health.up else "stopped")
 
@@ -324,6 +354,7 @@ def execute_plan(
             out=out,
             err=err,
             cancel=cancel,
+            quiet=quiet,
         )
         state.set(
             step.id,
@@ -333,7 +364,7 @@ def execute_plan(
         )
         if not res.ok:
             if res.status in ("failed", "error"):
-                _diagnose(err, res.tail)
+                _failed(err, res.tail, quiet)
             return done("failed", f"{step.title}: {res.status}.")
         if step.kind == "runtime":
             child_env["PATH"] = refreshed_path(

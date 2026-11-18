@@ -105,7 +105,7 @@ def test_blocking_gap_stops_before_anything_runs(tmp_path):
     marker = tmp_path / "ran"
     step = py("a", "setup", touch(marker))
     result, _, err = go(make_plan([step], gaps=[gap]), tmp_path, assume_yes=True)
-    assert result.outcome == "blocked" and result.exit_code == 1
+    assert result.outcome == "blocked" and result.exit_code == 4
     assert "node 20 needed" in err and "winget install x" in err
     assert not marker.exists()
 
@@ -402,3 +402,34 @@ def test_resume_refuses_after_a_readme_edit(tmp_path):
     (root / "README.md").write_text(_readme("echo one\necho three"), newline="\n")
     result, _o, _e = go(plan(), root, assume_yes=True, resume=True)
     assert result.exit_code == 2 and "plan changed" in result.message
+
+
+# --- T4.3 quiet and blocking -------------------------------------------------------
+
+
+def test_quiet_hides_child_output_but_shows_a_failing_steps_tail(tmp_path):
+    ok = py("a", "install", "print('chatty-' + 'ok-line')")
+    bad = py(
+        "b",
+        "install",
+        "[print(f'noise {i}') for i in range(60)]; raise SystemExit(1)",
+    )
+    result, out, err = go(make_plan([ok, bad]), tmp_path, assume_yes=True, quiet=True)
+    assert result.exit_code == 1
+    assert "chatty-ok-line" not in out + err
+    assert "[1/2] install" in err and "[2/2] install" in err  # stage headers stay
+    assert "last 40 lines of output" in err
+    assert "noise 59" in err and "noise 20" in err  # the last 40: 20..59
+    assert "noise 19" not in err
+
+
+def test_a_plan_of_only_other_os_steps_blocks_with_exit_4(tmp_path):
+    step = py("a", "install", "pass", platform_ok=False)
+    result, _o, _err = go(make_plan([step]), tmp_path, assume_yes=True)
+    assert result.outcome == "blocked" and result.exit_code == 4
+    assert not (tmp_path / ".rtfmup" / "state.json").exists()
+
+
+def test_an_empty_plan_is_nothing_to_run_exit_1(tmp_path):
+    result, _o, _e = go(make_plan([]), tmp_path, assume_yes=True)
+    assert result.outcome == "nothing" and result.exit_code == 1

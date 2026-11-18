@@ -164,6 +164,7 @@ def run_with_health(
     total: int = 1,
     env: Mapping[str, str] | None = None,
     log: RunLog | None = None,
+    quiet: bool = False,
     out: IO[str] | None = None,
     err: IO[str] | None = None,
     cancel: threading.Event | None = None,
@@ -188,6 +189,7 @@ def run_with_health(
                 out=out,
                 err=err,
                 cancel=cancel,
+                quiet=quiet,
             ),
             None,
         )
@@ -247,6 +249,7 @@ def run_with_health(
             out=out,
             err=err,
             cancel=inner,
+            quiet=quiet,
         )
     finally:
         exited.set()
