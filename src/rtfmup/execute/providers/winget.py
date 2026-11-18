@@ -78,10 +78,14 @@ class WingetProvider:
     def can_provide(self, runtime: str, spec: str | None) -> bool:
         return choose(TABLE, runtime, spec) is not None
 
-    def prerequisite_steps(self, runtime: str, spec: str | None) -> list[Step]:
+    def prerequisite_steps(
+        self, runtime: str, spec: str | None, host: HostProfile | None = None
+    ) -> list[Step]:
         return []
 
-    def install_step(self, runtime: str, spec: str | None) -> Step:
+    def install_step(
+        self, runtime: str, spec: str | None, host: HostProfile | None = None
+    ) -> Step:
         pkg = choose(TABLE, runtime, spec)
         if pkg is None:
             raise ValueError(f"winget cannot provide {runtime} {spec or ''}".strip())

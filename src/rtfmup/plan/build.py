@@ -34,13 +34,8 @@ from rtfmup.resolve import manifest_run_candidates
 
 
 def _provider_steps(host: HostProfile):
-    """Install steps for a runtime, from the first provider that can (D12).
-
-    Windows only until M5 defines the other orders; elsewhere a missing runtime
-    stays a gap with its manual fix. A `manual`-only answer is not an install.
-    """
-    if host.os != "windows":
-        return None
+    """Install steps for a runtime, from the first provider that can (D12), in the
+    fixed order for the host's OS. A `manual`-only answer is not an install."""
 
     def provision(runtime: str, spec: str | None) -> list[Step]:
         steps = select_steps(runtime, spec, host)
@@ -902,7 +897,11 @@ _SYSTEM_PMS = frozenset(
         "nix-env", "flox", "guix", "snap", "flatpak",
     }
 )  # fmt: skip
-_SYSTEM_PM_ORDER = {"windows": ("scoop", "winget", "choco")}  # D12, as WINDOWS_ORDER
+_SYSTEM_PM_ORDER = {  # D12: the system managers of each OS order, in that order
+    "windows": ("scoop", "winget", "choco"),
+    "macos": ("brew",),
+    "linux": ("apt", "dnf", "pacman"),
+}
 
 
 def _system_pm(text: str) -> str | None:

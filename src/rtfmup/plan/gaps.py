@@ -13,6 +13,7 @@ import posixpath
 import re
 from collections.abc import Callable, Iterable
 
+from rtfmup.host.archlimits import no_build_for_arch
 from rtfmup.host.probe import HostProfile
 from rtfmup.host.ranges import satisfies
 from rtfmup.models import Analysis, Component, Runtime
@@ -152,6 +153,14 @@ def _exe(step: Step) -> str | None:
     return re.sub(r"\.(?:exe|cmd|bat|ps1)$", "", name)
 
 
+def _arch_gap(name: str, r: Runtime, reason: str) -> Gap:
+    return Gap(
+        kind="runtime_version",
+        message=f"{DISPLAY[name]} {r.version_spec} ({_where(r)}) {reason}.",
+        fix=MANUAL_FIX[name],
+    )
+
+
 def compute_gaps(
     a: Analysis,
     comp: Component,
@@ -176,7 +185,9 @@ def compute_gaps(
             return False
         provided.add(runtime)
         if provisioned is not None:
-            provisioned.extend(steps_)
+            # A prerequisite shared by several runtimes (`apt-get update`) runs once.
+            have = {s.id for s in provisioned}
+            provisioned.extend(s for s in steps_ if s.id not in have)
         return True
 
     uses_uv = "uv" in comp.package_managers and host.tools.get("uv") is not None
@@ -204,6 +215,12 @@ def compute_gaps(
         specs = [r for r in needed[name] if r.version_spec]
         if not info.found:
             tools_missing.add(name)
+            no_build = (
+                no_build_for_arch(name, specs[0].version_spec, host) if specs else None
+            )
+            if no_build:
+                gaps.append(_arch_gap(name, specs[0], no_build))
+                continue
             if provide(name, specs[0].version_spec if specs else None):
                 continue
             want = f" {specs[0].version_spec}" if specs else ""
@@ -236,6 +253,8 @@ def compute_gaps(
                         ),
                     )
                 )
+            elif no_build := no_build_for_arch(name, spec, host):
+                gaps.append(_arch_gap(name, r, no_build))
             elif provide(name, spec):
                 continue
             else:

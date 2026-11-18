@@ -21,10 +21,14 @@ class ManualProvider:
     def can_provide(self, runtime: str, spec: str | None) -> bool:
         return runtime in MANUAL_FIX
 
-    def prerequisite_steps(self, runtime: str, spec: str | None) -> list[Step]:
+    def prerequisite_steps(
+        self, runtime: str, spec: str | None, host: HostProfile | None = None
+    ) -> list[Step]:
         return []
 
-    def install_step(self, runtime: str, spec: str | None) -> Step:
+    def install_step(
+        self, runtime: str, spec: str | None, host: HostProfile | None = None
+    ) -> Step:
         if runtime not in MANUAL_FIX:
             raise ValueError(f"no official download page known for {runtime}")
         return Step(

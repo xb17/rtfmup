@@ -50,7 +50,14 @@ def test_provider_is_used_only_when_its_tool_is_installed():
 
 
 def test_default_order_prefers_user_scope_providers():
-    assert WINDOWS_ORDER == ("uv_python", "scoop", "winget", "choco", "manual")
+    assert WINDOWS_ORDER == (
+        "uv_python",
+        "mise",
+        "scoop",
+        "winget",
+        "choco",
+        "manual",
+    )
 
 
 def test_python_goes_to_uv_first():

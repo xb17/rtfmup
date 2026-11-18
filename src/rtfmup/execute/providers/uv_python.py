@@ -46,10 +46,14 @@ class UvPythonProvider:
     def can_provide(self, runtime: str, spec: str | None) -> bool:
         return runtime == "python" and _uv_request(spec) is not None
 
-    def prerequisite_steps(self, runtime: str, spec: str | None) -> list[Step]:
+    def prerequisite_steps(
+        self, runtime: str, spec: str | None, host: HostProfile | None = None
+    ) -> list[Step]:
         return []
 
-    def install_step(self, runtime: str, spec: str | None) -> Step:
+    def install_step(
+        self, runtime: str, spec: str | None, host: HostProfile | None = None
+    ) -> Step:
         request = _uv_request(spec)
         if runtime != "python" or request is None:
             raise ValueError(f"uv cannot provide {runtime} {spec or ''}".strip())

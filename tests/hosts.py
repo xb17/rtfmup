@@ -56,3 +56,50 @@ def with_tool(host: HostProfile, name: str, version: str, *more: str) -> HostPro
 
 def docker_down(host: HostProfile) -> HostProfile:
     return host.model_copy(update={"docker_daemon": False})
+
+
+def _bare(os_: str, arch: str, **facts) -> HostProfile:
+    """Only git and uv installed: every runtime is missing, so providers decide."""
+    tools = {"git": _t("2.56.0"), "uv": _t("0.13.7")}
+    return HostProfile(os=os_, arch=arch, tools=tools, docker_daemon=None, **facts)
+
+
+def with_tools(host: HostProfile, *names: str) -> HostProfile:
+    """The same host with these tools present (no version)."""
+    extra = {n: ToolInfo(found=True, path=f"/usr/bin/{n}") for n in names}
+    return host.model_copy(update={"tools": {**host.tools, **extra}})
+
+
+def ubuntu(*, root: bool = False, arch: str = "x86_64") -> HostProfile:
+    h = _bare(
+        "linux",
+        arch,
+        distro_id="ubuntu",
+        distro_like=["debian"],
+        distro_version="24.04",
+        is_root=root,
+    )
+    return with_tools(without(h, "uv"), "apt", "sudo")
+
+
+def fedora(*, root: bool = False) -> HostProfile:
+    h = _bare("linux", "x86_64", distro_id="fedora", distro_version="43", is_root=root)
+    return with_tools(without(h, "uv"), "dnf", "sudo")
+
+
+def arch_linux(*, root: bool = False) -> HostProfile:
+    h = _bare("linux", "x86_64", distro_id="arch", is_root=root)
+    return with_tools(without(h, "uv"), "pacman", "sudo")
+
+
+def mac(arch: str = "arm64") -> HostProfile:
+    h = _bare(
+        "macos",
+        arch,
+        os_version="27.2",
+        brew_prefix="/opt/homebrew" if arch == "arm64" else "/usr/local",
+        xcode_clt=True,
+        rosetta=False,
+        is_root=False,
+    )
+    return without(h, "uv")
