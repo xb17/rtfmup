@@ -30,3 +30,24 @@ jobs:
           }
       - name: Provider e2e
         run: uv run pytest -m provider_e2e -v
+
+  # T5.3b: brew installs on GitHub's macos-latest only. The Mac mini runner user is
+  # deliberately non-admin and cannot write to the Homebrew prefix. Ready for the
+  # milestone CI; not triggered yet.
+  macos-brew:
+    if: github.repository == 'xb17/rtfmup'
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: false
+      - run: uv sync --locked
+      - name: Provider e2e (brew)
+        env:
+          RTFMUP_PROVIDER_E2E: brew
+        run: uv run pytest -m provider_e2e -v -rs
