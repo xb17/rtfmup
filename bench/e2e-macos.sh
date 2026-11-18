@@ -38,7 +38,8 @@ snapshot='
   ps -U "$(id -u)" -o comm= | sed "s#.*/##" | sort -u
   echo "--- launch agents"; ls "$HOME/Library/LaunchAgents" 2>/dev/null
   echo "--- home"; ls -A "$HOME"
-  echo "--- npm global"; ls "$(npm prefix -g 2>/dev/null)/lib/node_modules" 2>/dev/null'
+  echo "--- npm global"; ls "$(npm prefix -g 2>/dev/null)/lib/node_modules" 2>/dev/null
+  true'
 remote "$snapshot" > "$OUT/macos-before.txt"
 
 work="$(remote 'mktemp -d -t rtfmup-bench')"
