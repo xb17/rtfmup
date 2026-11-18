@@ -9,6 +9,12 @@ on:
         description: "Space-separated corpus names (blank = every e2e repo)"
         required: false
         default: ""
+      os:
+        description: "Runner image: windows-latest, ubuntu-latest or macos-latest"
+        required: false
+        default: windows-latest
+        type: choice
+        options: [windows-latest, ubuntu-latest, macos-latest]
 
 jobs:
   pick:
@@ -40,7 +46,7 @@ jobs:
   e2e:
     needs: pick
     if: github.repository == 'xb17/rtfmup'
-    runs-on: windows-latest
+    runs-on: ${{ inputs.os }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -65,12 +71,13 @@ jobs:
         id: e2e
         env:
           REPO: ${{ matrix.repo }}
-        run: uv run python bench/e2e.py --only "$env:REPO"
+        shell: bash
+        run: uv run python bench/e2e.py --only "$REPO"
       - name: Keep the report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-${{ matrix.repo }}
+          name: e2e-${{ inputs.os }}-${{ matrix.repo }}
           # Only this run's report, by the path e2e.py wrote: a glob would also match
           # the reports earlier runs committed to bench/results/.
           path: ${{ steps.e2e.outputs.report }}

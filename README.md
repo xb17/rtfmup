@@ -61,11 +61,11 @@ The analysis format is documented in [docs/schema.md](docs/schema.md). Changes b
 
 | OS | Arch | Shell for steps that need one | Tested by |
 |---|---|---|---|
-| Windows 11 | x86_64 | PowerShell 7 (`pwsh`) | every push on a Windows 11 machine; GitHub `windows-latest` (Windows 10 is not tested) |
-| Linux (Ubuntu 24.04 container) | x86_64 | `bash -c` | every push; GitHub `ubuntu-latest` |
+| Windows 11 | x86_64 | PowerShell 7 (`pwsh`) | every push on a Windows 11 machine; GitHub `windows-latest` at each release (Windows 10 is not tested) |
+| Linux (Ubuntu 24.04 container) | x86_64 | `bash -c` | every push; GitHub `ubuntu-latest` at each release |
 | macOS 27 (Apple silicon) | arm64 | `/bin/bash` (3.2) | every push on a Mac mini |
-| macOS 26 (Apple silicon) | arm64 | `/bin/bash` (3.2) | GitHub `macos-latest` |
-| macOS 26 (Intel) | x86_64 | `/bin/bash` (3.2) | GitHub `macos-26-intel`, in the milestone matrix only |
+| macOS 26 (Apple silicon) | arm64 | `/bin/bash` (3.2) | GitHub `macos-latest` at each release |
+| macOS 26 (Intel) | x86_64 | `/bin/bash` (3.2) | GitHub `macos-26-intel` at each release |
 
 What the tests cover: the unit and plan tests on all of the rows above, and `rtfmup up` end to end on a synthetic fixture (it reaches `Up:` and Ctrl+C leaves nothing running). Real installs through a package manager are tested on one platform each: Winget, Scoop, Chocolatey and `uv` on GitHub `windows-latest`; apt in a throwaway Ubuntu 24.04 container as root; mise and `uv python install` on the Mac mini as a non-admin user; Homebrew on GitHub `macos-latest` at milestone ends.
 
