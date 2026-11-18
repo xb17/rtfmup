@@ -425,7 +425,9 @@ def test_resume_survives_a_git_checkout_made_dirty_by_the_first_run(tmp_path):
     result, _o, _e = go(
         build_plan(dirty, windows_full()), root, assume_yes=True, resume=True
     )
-    assert result.exit_code == 0 and "plan changed" not in result.message
+    # Refused resumes run nothing and say why; whether `echo` itself can start
+    # depends on the host (no echo.exe on a bare Windows runner).
+    assert result.outcome != "cannot_resume", result.message
 
 
 # --- T4.3 quiet and blocking -------------------------------------------------------
