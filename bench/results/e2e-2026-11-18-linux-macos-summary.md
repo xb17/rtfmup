@@ -57,3 +57,30 @@ and global npm compared before and after). The remote work dir was deleted after
    puts that prefix on PATH, but on Linux and macOS global binaries go to `<prefix>/bin`.
    This is a harness bug, not rtfmup. Rerunning uptime-kuma after the fix will start a pm2
    daemon on the Mac mini, the same leftover risk as 2026-11-15, so it needs Drew's go-ahead.
+
+## Re-run after the fixes (rtfmup `d288b62`)
+
+Fixes in `e4f2c1e` (bugs 1 to 3), plus one harness change: pm2 keeps its state in the
+scratch folder (`PM2_HOME`) and the bench kills its daemon after each repo.
+
+**Linux (bare `ubuntu:26.04`): 0 of 7. macOS (Mac mini, non-admin): 1 of 7.**
+
+| repo | Linux, bare | macOS, Mac mini |
+|---|---|---|
+| datasette | node via apt declined (high risk) | runs; `datasette serve path/to/database.db`: placeholder path, as on Windows |
+| flask | no app (README) | port 5000 in use (AirPlay Receiver), and no app |
+| ripgrep | now plans `sudo apt-get install ripgrep` (was Gentoo's `emerge`), declined: high risk | brew skipped (prefix not writable); blocked: Rust not installed and no usable provider |
+| fzf | blocked: Go 1.23, Ruby 3.4 | blocked: Go 1.23, Ruby 3.4 (only system 2.6.10) |
+| express | node via apt declined | run step `express /tmp/foo` declined (high risk), as on Windows |
+| uptime-kuma | blocked: Node >= 26.2.0 | **SUCCESS**: `Up: http://localhost:3001` in 15 s |
+| laravel | blocked: PHP, composer | blocked: PHP ^8.3, composer |
+
+Left behind on the Mac mini: nothing. No `~/.pm2`, and the home directory matches the
+before-snapshot. The process diff showed `bash`, `python` and `uv`: Gitea CI run 796 for
+the same push was running as the same user at that moment, and only its `node` action
+process was still there when checked by hand. The remote work dir was deleted.
+
+The bare Linux number stays at 0 because every runtime has to come from apt, which is high
+risk and declined with stdin closed. The comparable Linux figure (a runner image with
+runtimes preinstalled, like Windows) is the GitHub `ubuntu-latest` run in
+`e2e-2026-11-18-ubuntu-summary.md`.
