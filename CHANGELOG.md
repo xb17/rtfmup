@@ -7,6 +7,36 @@ behavior).
 
 ## [Unreleased]
 
+Linux and macOS (M5).
+
+### Added
+
+- `up` runs on Linux and macOS. Steps that need a shell run through `bash -c` (macOS
+  uses the system `/bin/bash`, version 3.2), and Ctrl+C stops the step's whole process
+  tree. The "not yet supported on this OS" stop is gone.
+- `doctor` reports the Linux distribution (from `/etc/os-release`), the macOS version,
+  the Homebrew prefix, Command Line Tools and Rosetta status, and whether it runs as root.
+- Runtime providers for macOS and Linux: Homebrew, apt, dnf, pacman and mise (mise on
+  all three OSes, Windows included). Order per OS: `uv` and mise first, then the OS's
+  own manager. apt, dnf and pacman steps use `sudo` only when not root and always ask
+  you to type `yes`.
+- After a runtime step, the next steps find what it installed: Homebrew, mise shims,
+  `~/.cargo/bin`, `~/.local/bin` and Go's bin directory are put on the child PATH (no
+  shell profile is edited).
+- A pinned Node version with no macOS arm64 build (below 16) is reported as a gap
+  instead of failing during the install.
+- The port-in-use gap names the owning process on Linux and macOS.
+- `up` prints a diagnosis for a missing Xcode Command Line Tools, a missing Rosetta,
+  PEP 668 "externally managed" Pythons, missing C compilers, global npm `EACCES` and
+  Homebrew not on PATH.
+
+### Changed
+
+- The classifier tags commands for one OS: `apt`, `dnf`, `pacman`, `systemctl` and the
+  like are `linux`, `brew`, `xcode-select` and the like are `macos`, and generic bash
+  stays `unix`. A macOS host no longer plans a README's `apt` line.
+- README "Platforms" lists what is tested where.
+
 ## [0.4.0] - 2026-11-18
 
 Polish (M4).

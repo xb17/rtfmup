@@ -18,10 +18,7 @@ TABLE: tuple[tuple[int, str, str], ...] = (
     (
         EXIT_USAGE,
         "usage",
-        (
-            "Bad arguments, an unanswered question, `--resume` refused, or an OS "
-            "`up` does not support yet."
-        ),
+        ("Bad arguments, an unanswered question, or `--resume` refused."),
     ),
     (EXIT_DECLINED, "declined", "You declined the confirmation, or the run step."),
     (
