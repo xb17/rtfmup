@@ -108,15 +108,22 @@ def _render_verbose(analysis: Analysis, host) -> None:
 
 
 def _treat_break_as_interrupt() -> None:
-    """Windows: Ctrl+Break and console close act like Ctrl+C, so the child tree is
-    stopped instead of orphaned. Python only maps CTRL_C_EVENT to KeyboardInterrupt."""
-    if sys.platform != "win32":
-        return
+    """Stop the child tree instead of orphaning it when we are told to stop.
+
+    Windows: Ctrl+Break and console close act like Ctrl+C (Python only maps
+    CTRL_C_EVENT to KeyboardInterrupt). Linux and macOS: SIGINT is restored to
+    Python's handler, since a job started in the background by a shell inherits
+    SIGINT as ignored, and SIGTERM (a CI cancel, `kill`) becomes the same interrupt.
+    """
 
     def handler(signum, frame):
         raise KeyboardInterrupt
 
-    signal.signal(signal.SIGBREAK, handler)
+    if sys.platform == "win32":
+        signal.signal(signal.SIGBREAK, handler)
+        return
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
 
 
 @app.command()

@@ -11,6 +11,8 @@ import threading
 import time
 from pathlib import Path
 
+import pytest
+
 from rtfmup.analyze import analyze
 from rtfmup.execute.confirm import Confirmer
 from rtfmup.execute.envsetup import Prompter
@@ -93,11 +95,17 @@ def token_var() -> EnvVar:
     return EnvVar(name="API_TOKEN", required="required", secret_like=True, evidence=[])
 
 
-def test_non_windows_is_unsupported(tmp_path):
-    result, _, _ = go(make_plan([py("a", "setup", "pass")], os_="linux"), tmp_path)
-    assert result.outcome == "unsupported" and result.exit_code == 2
-    assert "not yet supported on this OS" in result.message
-    assert not (tmp_path / ".rtfmup" / "state.json").exists()
+@pytest.mark.parametrize("host_os", ["windows", "linux", "macos"])
+def test_up_executes_a_plan_on_every_host_os(tmp_path, host_os):
+    """T5.1 flips D7's old stop: Linux and macOS plans run like Windows ones."""
+    marker = tmp_path / "ran"
+    result, _, _ = go(
+        make_plan([py("a", "setup", touch(marker))], os_=host_os),
+        tmp_path,
+        assume_yes=True,
+    )
+    assert result.outcome == "stopped" and result.exit_code == 0
+    assert marker.exists() and state(tmp_path)["steps"]["a"]["status"] == "ok"
 
 
 def test_blocking_gap_stops_before_anything_runs(tmp_path):

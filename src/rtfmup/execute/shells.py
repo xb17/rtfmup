@@ -7,6 +7,7 @@ argv steps run directly. `needs_shell` steps run through `pwsh` on Windows and
 
 from __future__ import annotations
 
+import os
 import shlex
 import shutil
 import subprocess
@@ -17,6 +18,18 @@ from rtfmup.plan.model import Step
 
 class CommandError(Exception):
     """The step cannot be turned into a command on this host."""
+
+
+MACOS_BASH = "/bin/bash"  # the system's bash 3.2 (GPLv2); no bash 4+ features (D17)
+
+
+def find_bash(path: str | None = None) -> str | None:
+    """The bash that runs `needs_shell` steps. macOS always gets `/bin/bash`: a
+    Homebrew bash earlier on PATH would make a step behave differently from what the
+    README author's stock macOS did, and rtfmup promises nothing newer than 3.2."""
+    if sys.platform == "darwin" and os.access(MACOS_BASH, os.X_OK):
+        return MACOS_BASH
+    return shutil.which("bash", path=path)
 
 
 def build_command(step: Step, *, path: str | None = None) -> list[str]:
@@ -37,7 +50,7 @@ def build_command(step: Step, *, path: str | None = None) -> list[str]:
                     "install it with: winget install --id Microsoft.PowerShell"
                 )
             return [pwsh, "-NoProfile", "-NonInteractive", "-Command", step.shell_text]
-        bash = shutil.which("bash")
+        bash = find_bash(path)
         if not bash:
             raise CommandError("bash is required for this step but was not found")
         return [bash, "-c", step.shell_text]

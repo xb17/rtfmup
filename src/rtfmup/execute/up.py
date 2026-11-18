@@ -51,7 +51,6 @@ Outcome = Literal[
     "declined",
     "blocked",
     "failed",
-    "unsupported",
     "cannot_resume",
     "nothing",
 ]
@@ -72,7 +71,6 @@ class UpResult:
             "blocked": EXIT_GAPS_BLOCK,
             "failed": EXIT_STEP_FAILED,
             "nothing": EXIT_STEP_FAILED,
-            "unsupported": EXIT_USAGE,
             "cannot_resume": EXIT_USAGE,
         }[self.outcome]
 
@@ -202,11 +200,6 @@ def execute_plan(
     err = err or sys.stderr
     root = root.resolve()
 
-    if plan.host_os != "windows":
-        return UpResult(
-            "unsupported",
-            f"`up` is not yet supported on this OS ({plan.host_os}).",
-        )
     done_before: dict[str, dict] = {}
     if resume:
         prior = load_state(root)
