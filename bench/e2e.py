@@ -22,7 +22,8 @@ What one run does:
      the full output next to it in the scratch folder.
 
 rtfmup's own dev venv is taken off PATH first: users run rtfmup from uvx or pipx,
-so a repo's steps must not find rtfmup's interpreter or tools. Windows only until M5.
+so a repo's steps must not find rtfmup's interpreter or tools. Since M5 it also runs
+on Linux (`bench/e2e-linux.sh`, one disposable container per repo) and macOS (T5.8).
 """
 
 from __future__ import annotations
@@ -148,9 +149,6 @@ def run_one(args: argparse.Namespace) -> int:
     if not repo.get("e2e"):
         print(f"{args.only} is not marked e2e in corpus.toml", file=sys.stderr)
         return 2
-    if sys.platform != "win32":
-        print("e2e bench runs on Windows only until M5", file=sys.stderr)
-        return 2
     if not ON_CI and not args.on_host:
         print(
             "refusing: this executes third-party setup steps. Run it on an ephemeral\n"
@@ -238,7 +236,8 @@ def run_one(args: argparse.Namespace) -> int:
     where = (
         f"GitHub {os.environ.get('ImageOS', 'windows')} runner"
         if ON_CI
-        else "this machine (--on-host)"
+        # set by the T5.8 drivers: a disposable container, or the Mac mini runner user
+        else os.environ.get("RTFMUP_BENCH_WHERE") or "this machine (--on-host)"
     )
     report = (
         f"# e2e: {args.only} ({stamp})\n\n"
