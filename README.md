@@ -3,7 +3,7 @@
 **Set up any repo from its README.**
 Read The Fine Manual, then bring it `up`.
 
-> ⚠️ **Early development.** This release analyses a repo, builds a setup plan, exports a devcontainer, and on Windows sets the repo up and runs it with `rtfmup up`. Many real READMEs still trip it up: in our benchmark, `up` brings 1 of 7 real repos all the way to running. `recipe` is a stub.
+> ⚠️ **Early development.** This release analyses a repo, builds a setup plan, exports a devcontainer, and on Windows sets the repo up and runs it with `rtfmup up`. Many real READMEs still trip it up: in our benchmark, `up` brings 2 of 7 real repos all the way to running. `recipe` is a stub.
 
 ## What it does
 
@@ -54,6 +54,18 @@ env templates, Makefile/Justfile, devcontainer, CI, deployment files), reads the
 questions it would have to ask. It never runs anything from the repo.
 
 The analysis format is documented in [docs/schema.md](docs/schema.md). Changes between releases are in [CHANGELOG.md](CHANGELOG.md).
+
+## Benchmark
+
+Measured on a pinned corpus of 10 real repos (`bench/`), 2026-11-18:
+
+| Measure | All 10 repos | Held-out 3 |
+|---|---|---|
+| README command recall | 66% | 94% |
+| README command precision | 61% | 91% |
+| Category accuracy | 90% | 94% |
+
+**End to end:** `rtfmup up --yes` on a fresh Windows VM per repo brings **2 of 7** to running (uptime-kuma, ripgrep). The tuning set is 1 of 4 and the held-out set 1 of 3. ripgrep has been tuned on, so the held-out figure overstates unseen repos. Per-repo reports are in `bench/results/`.
 
 ## Roadmap
 
