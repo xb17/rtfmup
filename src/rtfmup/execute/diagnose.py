@@ -36,7 +36,8 @@ def _p(id: str, regex: str, explanation: str, fix: str) -> _Pattern:
     )
 
 
-# Most specific first.
+# Most specific first. The macOS and Linux entries (T5.6) come after the Windows
+# ones that cannot collide with them and before the generic permission one.
 PATTERNS: tuple[_Pattern, ...] = (
     _p(
         "msvc-build-tools",
@@ -67,13 +68,82 @@ PATTERNS: tuple[_Pattern, ...] = (
         "Start Docker Desktop, wait until it says it is running, then run again.",
     ),
     _p(
+        "xcode-clt-missing",
+        r"xcrun: error: invalid active developer path|"
+        r"xcode-select: note: no developer tools were found|"
+        r"xcode-select: error: no developer tools were found|"
+        r"missing xcrun at: /Library/Developer/CommandLineTools",
+        "macOS's Command Line Tools (compiler, git, make) are not installed or are "
+        "out of date after a macOS update.",
+        "Run `xcode-select --install`, finish the installer, then run "
+        "`rtfmup up --resume`.",
+    ),
+    _p(
+        "rosetta-missing",
+        r"Bad CPU type in executable|bad CPU type in executable",
+        "A program built for Intel Macs was started on Apple silicon and Rosetta 2 "
+        "is not installed.",
+        "Run `softwareupdate --install-rosetta --agree-to-license`, or install the "
+        "arm64 build of that tool, then run `rtfmup up --resume`.",
+    ),
+    _p(
+        "pep668-externally-managed",
+        r"externally-managed-environment|"
+        r"This environment is externally managed",
+        "pip refuses to install into a Python that the operating system or Homebrew "
+        "manages (PEP 668).",
+        "Install into a virtual environment instead (`uv venv` then "
+        "`uv pip install ...`, or `python3 -m venv .venv`). Do not use "
+        "--break-system-packages.",
+    ),
+    _p(
+        "npm-global-eacces",
+        r"EACCES[\s\S]{0,300}?(?:/usr/local/lib/node_modules|/usr/lib/node_modules|"
+        r"/usr/local/bin|/opt/homebrew/lib/node_modules)|"
+        r"permission denied, (?:mkdir|access|open|symlink) '/usr/(?:local/)?"
+        r"(?:lib|bin)",
+        "npm tried to install a global package into a system directory this user "
+        "cannot write to.",
+        "Do not use sudo. Install Node with a per-user manager (mise, nvm, fnm) or "
+        "point npm at your own directory: `npm config set prefix ~/.npm-global` and "
+        "put `~/.npm-global/bin` on PATH, then run again.",
+    ),
+    _p(
+        "build-tools-missing",
+        r"unable to execute '?(?:gcc|cc|c\+\+|g\+\+)'?: No such file|"
+        r"error: command '(?:gcc|cc|x86_64-linux-gnu-gcc|aarch64-linux-gnu-gcc)' "
+        r"failed: No such file or directory|"
+        r"(?:gcc|cc|g\+\+|make): (?:command )?not found|"
+        r"No CMAKE_C_COMPILER could be found|"
+        r"is gcc not installed\?|sh: \d*:? ?(?:gcc|make): not found",
+        "A package needs to compile native code and no C compiler or make is "
+        "installed.",
+        "Install the build tools: `sudo apt install build-essential` (Debian, "
+        'Ubuntu), `sudo dnf groupinstall "Development Tools"` (Fedora), '
+        "`sudo pacman -S base-devel` (Arch). Then run `rtfmup up --resume`.",
+    ),
+    _p(
+        "brew-not-on-path",
+        r"(?:zsh|bash|sh): (?:command not found: brew|brew: (?:command )?not found)|"
+        r"\bbrew: command not found",
+        "Homebrew is installed but its directory is not on PATH, or it is not "
+        "installed.",
+        "If it is installed, add it to PATH for this session: "
+        '`eval "$(/opt/homebrew/bin/brew shellenv)"` (Apple silicon; '
+        "`/usr/local/bin/brew` on an Intel Mac), and put that line in your shell "
+        "profile yourself (rtfmup never edits it). If not, install Homebrew from "
+        "https://brew.sh.",
+    ),
+    _p(
         "port-in-use",
         r"EADDRINUSE|address already in use|"
         r"Only one usage of each socket address|"
         r"port is already allocated|bind: .*already in use",
         "The port this project wants is already used by another program.",
-        "Stop the program using that port (`Get-NetTCPConnection -LocalPort <port>` "
-        "shows its PID), or change the project's port setting, then run again.",
+        "Stop the program using that port (rtfmup names it when it can; "
+        "`lsof -nP -iTCP:<port> -sTCP:LISTEN` on macOS and Linux, "
+        "`Get-NetTCPConnection -LocalPort <port>` on Windows), or change the "
+        "project's port setting, then run again.",
     ),
     _p(
         "long-paths",

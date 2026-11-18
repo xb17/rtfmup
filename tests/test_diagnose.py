@@ -45,6 +45,42 @@ SAMPLES = {
             "or newer, while the currently active rustc version is 1.75"
         ),
     ],
+    "xcode-clt-missing": [
+        (
+            "xcrun: error: invalid active developer path "
+            "(/Library/Developer/CommandLineTools), missing xcrun at: "
+            "/Library/Developer/CommandLineTools/usr/bin/xcrun"
+        ),
+        "xcode-select: note: no developer tools were found, requesting install.",
+    ],
+    "rosetta-missing": [
+        "zsh: bad CPU type in executable: ./bin/tool",
+        "bash: ./node_modules/.bin/esbuild: Bad CPU type in executable",
+    ],
+    "pep668-externally-managed": [
+        "error: externally-managed-environment",
+        "\u00d7 This environment is externally managed",
+    ],
+    "npm-global-eacces": [
+        (
+            "npm error code EACCES\nnpm error syscall mkdir\n"
+            "npm error path /usr/local/lib/node_modules/pnpm"
+        ),
+        (
+            "npm ERR! Error: EACCES: permission denied, mkdir "
+            "'/usr/local/lib/node_modules/yarn'"
+        ),
+    ],
+    "build-tools-missing": [
+        "error: command 'gcc' failed: No such file or directory",
+        "unable to execute 'gcc': No such file or directory",
+        "sh: 1: make: not found",
+        "bash: cc: command not found",
+    ],
+    "brew-not-on-path": [
+        "zsh: command not found: brew",
+        "bash: brew: command not found",
+    ],
     "file-locked-or-denied": [
         "npm error code EPERM",
         (
@@ -79,6 +115,22 @@ def test_only_the_last_200_lines_are_read():
     old = [SAMPLES["port-in-use"][0]] + ["noise"] * MAX_LINES
     assert diagnose(old) == []
     assert diagnose(["noise"] * MAX_LINES + [SAMPLES["port-in-use"][0]])
+
+
+def test_a_global_npm_eacces_is_more_specific_than_the_generic_permission_hint():
+    out = diagnose([SAMPLES["npm-global-eacces"][0]])
+    assert [d.id for d in out] == ["npm-global-eacces", "file-locked-or-denied"]
+    # an EACCES in the user's own cache is the generic case only
+    own = diagnose(["npm error code EACCES", "npm error path /Users/me/.npm/_cacache"])
+    assert [d.id for d in own] == ["file-locked-or-denied"]
+
+
+def test_the_unix_fixes_never_ask_to_edit_a_profile_or_break_the_system():
+    for p in PATTERNS:
+        assert "--break-system-packages" not in p.fix.replace(
+            "Do not use --break-system-packages", ""
+        ), p.id
+        assert "sudo npm" not in p.fix
 
 
 def test_at_most_two_most_specific_first():

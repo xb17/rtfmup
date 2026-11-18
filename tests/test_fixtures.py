@@ -10,6 +10,7 @@ EXPECTED = {
     "console-output", "rust-cli", "go-cli", "dotnet-web", "rails-ish",
     "laravel-ish", "py-http", "rst-readme", "deploy-mixed", "k8s-manifests",
     "macos-readme", "linux-readme", "mise-pinned", "install-alternatives", "diagnose-msvc", "resume",
+    "diagnose-xcode", "diagnose-pep668",
 }  # fmt: skip
 
 

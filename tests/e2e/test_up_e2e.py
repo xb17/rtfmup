@@ -154,3 +154,42 @@ def test_up_resume_continues_after_the_failed_step(tmp_path):
     done = up("--resume")
     assert done.returncode == 0, done.stderr
     assert "already done" in done.stderr
+
+
+def _diagnosis_after_failure(tmp_path, fixture: str):
+    repo = tmp_path / fixture
+    shutil.copytree(
+        FIXTURE.parent / fixture, repo, ignore=shutil.ignore_patterns(".rtfmup")
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "rtfmup.cli", "up", str(repo), "--yes"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+        check=False,
+    )
+    return proc
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS diagnosis (T5.6)")
+def test_up_prints_a_macos_diagnosis_for_a_failing_step(tmp_path):
+    """T5.6 accept (macOS): the Command Line Tools failure fixture exits 1 and prints
+    the explanation and fix after the failure line."""
+    proc = _diagnosis_after_failure(tmp_path, "diagnose-xcode")
+    err = proc.stderr
+    assert proc.returncode == 1, err
+    assert err.index("FAILED") < err.index("Diagnosis:")
+    assert "Command Line Tools" in err and "xcode-select --install" in err
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux diagnosis (T5.6)")
+def test_up_prints_a_linux_diagnosis_for_a_failing_step(tmp_path):
+    """T5.6 accept (Linux): the PEP 668 failure fixture exits 1 and prints the
+    explanation and fix after the failure line."""
+    proc = _diagnosis_after_failure(tmp_path, "diagnose-pep668")
+    err = proc.stderr
+    assert proc.returncode == 1, err
+    assert err.index("FAILED") < err.index("Diagnosis:")
+    assert "PEP 668" in err and "uv venv" in err
